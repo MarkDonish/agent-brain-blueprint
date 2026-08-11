@@ -32,3 +32,11 @@ Date: 2026-08-11
 - No distributed lock service
 - No vector DB / embedding runtime
 - No secret storage in vault examples
+
+## Release workflow (local-first)
+
+1. Optimize and dogfood locally first.
+2. Extract only reusable technical content for the public repo.
+3. Never publish personal logs, private paths, secrets, customer data, or raw conversations.
+4. Run `make verify` and `python3 scripts/check_privacy_scan.py .` before push.
+
