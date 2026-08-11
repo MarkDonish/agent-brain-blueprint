@@ -2,8 +2,11 @@
 # Hard secrets are still reported.
 # demo / docs placeholders
 example-app
+demo-notes-app
 demo-user
 demo-agent
+codex-cli
+claude-code
 /path/to/
 your-account
 localhost

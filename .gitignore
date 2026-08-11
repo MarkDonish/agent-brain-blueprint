@@ -32,3 +32,5 @@ build/
 # Session claims often contain local task context.
 **/session_claims/*.md
 !**/session_claims/.gitkeep
+# Public fictional demo claims are intentional teaching files.
+!examples/demo-vault/40_handoffs/session_claims/*.md

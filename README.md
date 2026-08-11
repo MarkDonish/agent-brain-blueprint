@@ -1,27 +1,65 @@
 # Agent Brain Blueprint
 
-A local-first, Markdown-native operating model for shared AI-agent memory.
+[![CI](https://github.com/MarkDonish/agent-brain-blueprint/actions/workflows/ci.yml/badge.svg)](https://github.com/MarkDonish/agent-brain-blueprint/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 
-This repository is a reusable blueprint, not a personal memory dump. It gives
-Codex, Claude Code, and other agents a small, auditable place to share project
-state, handoffs, durable decisions, validation records, and retrieval hints.
+**Local-first, Markdown-native shared memory for multi-agent work.**
 
-## What it solves
+When Codex, Claude Code, and other agents share a machine, chat history is not a
+team brain. This blueprint gives them a small, auditable vault for project
+state, handoffs, decisions, validation, and narrow session claims — without
+dumping secrets or raw conversations into Git.
 
-- A new agent can find the relevant project context without loading every past conversation.
-- Markdown is the canonical record; indexes and search systems only nominate candidates.
-- Personal memory, runtime configuration, secrets, logs, and databases stay outside the vault.
-- Concurrent sessions can declare a narrow file claim before work and use a read-only closeout check.
-- Durable facts carry provenance, confidence, freshness, scope, ownership, and risk boundaries.
+> Not a personal memory dump. Not a hosted SaaS. A **template + scripts** you
+> clone, bootstrap, and own.
 
-## Design principles
+## Why this exists
 
-1. **Markdown first.** Everything important remains readable, diffable, and portable.
-2. **Retrieval is not truth.** Reopen the source Markdown or the real runtime before acting.
-3. **Project before chat.** Organize by project state, handoff, validation, decision, and source material.
-4. **Minimal context.** Read an entry card, then retrieve only what the task needs.
-5. **No silent writes.** Claims, closeout, and promotion of durable facts are explicit.
-6. **Privacy by construction.** Never put credentials, raw conversations, customer data, databases, or logs in the vault.
+Multi-agent setups fail in boring, expensive ways:
+
+| Pain | What usually happens | What this blueprint does |
+| --- | --- | --- |
+| Context amnesia | New session reloads half the world | Entry card → project overview → only the needed records |
+| Overwrite chaos | Two agents edit the same notes | Narrow **session claims** + read-only claim gate |
+| Fake memory | Vector hits treated as truth | **Markdown is canonical**; retrieval only nominates |
+| Secret leakage | Logs and keys land in “shared memory” | Privacy scan + hard isolation boundaries |
+| Unprovable done | “It works” with no evidence | Validation records before closeout |
+
+Built for people who actually run **Codex / Claude / local agents** side by side.
+
+## 60-second demo
+
+```bash
+git clone https://github.com/MarkDonish/agent-brain-blueprint.git
+cd agent-brain-blueprint
+
+# Inspect the fictional multi-agent story (no personal data)
+python3 scripts/doctor.py examples/demo-vault
+python3 scripts/check_session_claims.py examples/demo-vault
+# free path → allowed; claimed current_work path → conflict (demo signal)
+python3 scripts/check_claim_gate.py examples/demo-vault \
+  --path 10_projects/demo-notes-app/60_summaries/INDEX.md
+
+# Or bootstrap your own private vault
+python3 scripts/bootstrap.py --destination ../my-agent-brain --project my-app
+python3 scripts/doctor.py ../my-agent-brain
+```
+
+Walk the story: [examples/demo-vault](examples/demo-vault) · full guide: [docs/walkthrough.md](docs/walkthrough.md)
+
+## How it fits together
+
+```mermaid
+flowchart LR
+  A[Agent hosts<br/>Codex / Claude / …] --> B[00_entrypoint<br/>Session start card]
+  B --> C[10_projects<br/>Overview · work · handoffs]
+  C --> D[Session claims<br/>narrow planned paths]
+  C --> E[Decisions + validation<br/>provenance fields]
+  D --> F[doctor + claim gate<br/>read-only checks]
+  E --> F
+  F --> G[Markdown remains truth<br/>indexes only nominate]
+```
 
 ## Quick start
 
@@ -39,27 +77,22 @@ Bootstrap creates a new local vault from the templates, copies record templates
 into `60_templates/`, installs a vault `.gitignore`, and refuses non-empty
 destinations.
 
-## Repository layout
+## Design principles
 
-```text
-AGENTS.md                         shared operating rules for agent hosts
-docs/                             architecture, privacy, claims, optimization notes
-schemas/                          JSON field contracts (single source of truth)
-templates/vault/                  bootstrap source
-templates/*.md                    record templates aligned to schemas
-scripts/                          dependency-free validation tools
-scripts/lib/                      shared frontmatter + schema helpers
-tests/                            regression tests
-examples/demo-vault/              fictional, safe reference note
-```
+1. **Markdown first.** Readable, diffable, portable.
+2. **Retrieval is not truth.** Reopen the source Markdown or real runtime before acting.
+3. **Project before chat.** Organize by state, handoff, validation, decision, sources.
+4. **Minimal context.** Entry card, then only what the task needs.
+5. **No silent writes.** Claims, closeout, and durable facts are explicit.
+6. **Privacy by construction.** No credentials, raw chats, customer data, DBs, or logs in the vault.
 
 ## Session claims and closeout
 
-Before changing shared memory, create a session claim from
-`templates/session_claim.md`. Recommended fields now include:
+Before changing shared memory, create a claim from `templates/session_claim.md`:
 
 - `claimed_by` — which agent/host owns the claim
-- `expires_at` — when the claim stops being treated as active
+- `expires_at` — when the claim stops counting as active
+- `planned_paths` — vault-relative paths only
 
 ```bash
 python3 scripts/check_session_claims.py ./my-agent-brain
@@ -67,13 +100,13 @@ python3 scripts/check_claim_gate.py ./my-agent-brain \
   --path 10_projects/example-app/10_current_work/INDEX.md
 ```
 
-Important limits:
+Limits (honest ones):
 
-- claim checks are read-only and local-filesystem only
-- dry-run fields are self-attested metadata
-- this is **not** a distributed lock
+- read-only, local-filesystem only
+- `dry_run_*` is self-attested metadata
+- **not** a distributed lock
 
-See [session claims and closeout](docs/session-claims-and-closeout.md).
+Details: [docs/session-claims-and-closeout.md](docs/session-claims-and-closeout.md)
 
 ## Tooling
 
@@ -86,9 +119,22 @@ See [session claims and closeout](docs/session-claims-and-closeout.md).
 | `scripts/check_session_claims.py` | Claim shape, expiry, path conflicts |
 | `scripts/check_claim_gate.py` | Pre-write conflict check for planned paths |
 | `scripts/check_privacy_scan.py` | Pre-publish secret/path scan |
-| `scripts/fix_vault_structure.py` | Optional dry-run/`--apply` skeleton repair |
+| `scripts/fix_vault_structure.py` | Optional dry-run / `--apply` skeleton repair |
 
-Field contracts live in `schemas/*.json`.
+Field contracts: `schemas/*.json` (zero third-party deps).
+
+## Repository layout
+
+```text
+AGENTS.md                         shared operating rules for agent hosts
+docs/                             architecture, privacy, walkthrough, claims
+schemas/                          JSON field contracts
+templates/vault/                  bootstrap source
+templates/*.md                    record templates aligned to schemas
+scripts/                          dependency-free validation tools
+examples/demo-vault/              fictional multi-agent story (run doctor on it)
+tests/                            regression tests
+```
 
 ## Privacy boundary
 
@@ -100,13 +146,31 @@ python3 scripts/check_privacy_scan.py .
 python3 scripts/check_privacy_scan.py . --strict
 ```
 
-Optional allowlist file: `.privacy-allowlist`.
+Optional allowlist: `.privacy-allowlist` · more: [docs/privacy.md](docs/privacy.md)
 
 ## Verification
 
 ```bash
 make verify
 ```
+
+CI runs the same unit tests, template doctor, privacy scan, and bootstrap smoke.
+
+## Codex / multi-agent note
+
+This repo is intentionally **Codex-friendly and host-agnostic**:
+
+- plain Markdown + Python 3 stdlib (no vendor lock-in)
+- claim + closeout workflow matches how coding agents already leave handoffs
+- privacy scanner is meant for pre-publish of agent-produced docs
+
+If you maintain OSS with local agents, star and open issues when the vault shape
+does not match your workflow — that feedback is the adoption signal.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Small, test-backed PRs welcome:
+docs clarity, demo improvements, schema edge cases, checker UX.
 
 ## License
 

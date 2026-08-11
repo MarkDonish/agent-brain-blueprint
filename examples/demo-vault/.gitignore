@@ -1,0 +1,30 @@
+.DS_Store
+.env
+.env.*
+*.log
+*.sqlite
+*.sqlite3
+*.db
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+data/
+indexes/
+cache/
+logs/
+private/
+*.pem
+*.key
+*.p12
+*.pfx
+
+# This is the public *fictional* demo vault. Session claims here are intentional
+# teaching files (no personal data). Real private vaults should ignore:
+#   40_handoffs/session_claims/*.md
+# and keep only .gitkeep — see templates/vault/.gitignore.
+
+# Never commit isolated sensitive material.
+80_sensitive_isolation/**
+!80_sensitive_isolation/README.md
+!80_sensitive_isolation/.gitkeep

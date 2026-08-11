@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0 - 2026-08-11
+
+- Expand `examples/demo-vault/` into a full fictional multi-agent story (claims, handoff, decision, validation).
+- Rewrite README for problem → demo → principles impact; add CI/license badges and mermaid overview.
+- Add `docs/walkthrough.md`, `docs/why-agent-brain.md`, and `CONTRIBUTING.md`.
+- Include demo vault in `make verify` doctor path.
+- Refresh optimization notes for adoption-focused release workflow.
+
 ## 0.3.0 - 2026-08-11
 
 - Add centralized JSON schemas under `schemas/` and shared frontmatter/schema libraries.
