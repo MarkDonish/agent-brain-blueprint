@@ -4,62 +4,69 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
-REQUIRED_PATHS = (
-    "00_entrypoint/SESSION_START_CARD.md",
-    "10_projects",
-    "20_agent_catalog/README.md",
-    "30_global_decisions/README.md",
-    "40_handoffs/session_claims/.gitkeep",
-    "50_retrieval/README.md",
-    "60_templates/README.md",
-    "70_inbox/README.md",
-    "80_sensitive_isolation/README.md",
-    "90_archive/README.md",
-    "AGENTS.md",
-)
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
 
-PROJECT_PATHS = (
-    "PROJECT_OVERVIEW.md",
-    "10_current_work/INDEX.md",
-    "20_handoffs/INDEX.md",
-    "30_docs/INDEX.md",
-    "40_validation/INDEX.md",
-    "50_decisions/INDEX.md",
-    "60_summaries/INDEX.md",
-    "90_raw_sources/INDEX.md",
-)
+from lib.path_safety import PathSafetyError, project_dir, validate_project_slug
+from lib.vault_layout import required_entries
 
 
-def missing_paths(root: Path, project: str | None = None) -> list[Path]:
-    missing: list[Path] = []
-    for rel in REQUIRED_PATHS:
+def missing_entries(root: Path, project: str | None = None) -> list[tuple[Path, str]]:
+    """Return list of (absolute path, kind) that are missing or wrong type."""
+    missing: list[tuple[Path, str]] = []
+    for entry in required_entries(project=False):
+        rel = str(entry["path"])
+        kind = str(entry["kind"])
         path = root / rel
         if not path.exists():
-            missing.append(path)
+            missing.append((path, kind))
+        elif kind == "file" and not path.is_file():
+            missing.append((path, kind))
+        elif kind == "directory" and not path.is_dir():
+            missing.append((path, kind))
     if project:
-        for rel in PROJECT_PATHS:
-            path = root / "10_projects" / project / rel
+        slug = validate_project_slug(project)
+        base = project_dir(root, slug)
+        for entry in required_entries(project=True):
+            rel = str(entry["path"])
+            kind = str(entry["kind"])
+            path = base / rel
             if not path.exists():
-                missing.append(path)
+                missing.append((path, kind))
+            elif kind == "file" and not path.is_file():
+                missing.append((path, kind))
+            elif kind == "directory" and not path.is_dir():
+                missing.append((path, kind))
     return missing
 
 
-def apply(paths: list[Path]) -> None:
-    for path in paths:
-        if path.suffix:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            if not path.exists():
-                if path.name == ".gitkeep":
-                    path.write_text("", encoding="utf-8")
-                elif path.suffix == ".md":
-                    title = path.stem.replace("_", " ")
-                    path.write_text(f"# {title}\n\nPlaceholder created by fix_vault_structure.py.\n", encoding="utf-8")
-                else:
-                    path.write_text("", encoding="utf-8")
-        else:
+def apply(entries: list[tuple[Path, str]]) -> None:
+    for path, kind in entries:
+        if kind == "directory":
+            if path.exists() and path.is_file():
+                raise PathSafetyError(f"cannot create directory; file exists: {path}")
             path.mkdir(parents=True, exist_ok=True)
+            continue
+        # file
+        if path.exists() and path.is_dir():
+            raise PathSafetyError(f"cannot create file; directory exists: {path}")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if path.exists():
+            continue
+        if path.name == ".gitkeep":
+            path.write_text("", encoding="utf-8")
+        elif path.suffix == ".md":
+            title = path.stem.replace("_", " ")
+            path.write_text(
+                f"# {title}\n\nPlaceholder created by fix_vault_structure.py.\n",
+                encoding="utf-8",
+            )
+        else:
+            path.write_text("", encoding="utf-8")
 
 
 def main() -> int:
@@ -69,13 +76,19 @@ def main() -> int:
     parser.add_argument("--apply", action="store_true", help="create missing paths (otherwise dry-run)")
     args = parser.parse_args()
     root = args.root.expanduser().resolve()
-    missing = missing_paths(root, args.project)
+    try:
+        missing = missing_entries(root, args.project)
+    except PathSafetyError as exc:
+        parser.error(str(exc))
     print(f"vault: {root}")
     print(f"missing: {len(missing)}")
-    for path in missing:
-        print(f"  - {path.relative_to(root)}")
+    for path, kind in missing:
+        print(f"  - [{kind}] {path.relative_to(root)}")
     if args.apply:
-        apply(missing)
+        try:
+            apply(missing)
+        except PathSafetyError as exc:
+            parser.error(str(exc))
         print("applied")
     else:
         print("dry-run only; re-run with --apply to create placeholders")

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -20,6 +21,15 @@ def _private_key_fixture() -> str:
 
 def _home_path_fixture() -> str:
     return "vault lives at " + "/" + "/".join(["Users", "demo", "secret-vault"]) + "\n"
+
+
+def _openai_key_fixture() -> str:
+    # sk- + 20+ alnum
+    return "token = " + "sk-" + ("a" * 24) + "\n"
+
+
+def _bearer_fixture() -> str:
+    return "Authorization: Bearer " + ("Z" * 32) + "\n"
 
 
 class PrivacyScanTests(unittest.TestCase):
@@ -54,6 +64,40 @@ class PrivacyScanTests(unittest.TestCase):
             report = PRIVACY.scan(root)
             self.assertGreaterEqual(report["checked_file_count"], 1)
             self.assertGreaterEqual(report["risk_finding_count"], 1)
+
+    def test_secret_output_is_redacted(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            raw_key = "sk-" + ("b" * 24)
+            (root / "leak.md").write_text(f"key={raw_key}\n", encoding="utf-8")
+            report = PRIVACY.scan(root)
+            dumped = json.dumps(report)
+            self.assertGreaterEqual(report["secret_finding_count"], 1)
+            self.assertNotIn(raw_key, dumped)
+            detail = report["secret_findings"][0]["detail"]
+            self.assertIn("[REDACTED]", detail)
+            self.assertIn("fingerprint", report["secret_findings"][0])
+
+    def test_bearer_token_never_appears_in_report(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            token = "Z" * 32
+            (root / "auth.md").write_text(f"Authorization: Bearer {token}\n", encoding="utf-8")
+            report = PRIVACY.scan(root)
+            dumped = json.dumps(report)
+            self.assertGreaterEqual(report["secret_finding_count"], 1)
+            self.assertNotIn(token, dumped)
+            self.assertNotIn(f"Bearer {token}", dumped)
+
+    def test_openai_key_never_appears_in_report(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            key = "sk-" + ("c" * 24)
+            (root / "env.md").write_text(_openai_key_fixture().replace("sk-" + ("a" * 24), key), encoding="utf-8")
+            report = PRIVACY.scan(root)
+            dumped = json.dumps(report)
+            self.assertGreaterEqual(report["secret_finding_count"], 1)
+            self.assertNotIn(key, dumped)
 
 
 if __name__ == "__main__":

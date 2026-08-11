@@ -96,8 +96,13 @@ Before changing shared memory, create a claim from `templates/session_claim.md`:
 
 ```bash
 python3 scripts/check_session_claims.py ./my-agent-brain
+# Exclude your own claim (required after you create it)
 python3 scripts/check_claim_gate.py ./my-agent-brain \
+  --session-id YOUR-SESSION-ID \
   --path 10_projects/example-app/10_current_work/INDEX.md
+# Or load session_id + planned_paths from the claim file
+python3 scripts/check_claim_gate.py ./my-agent-brain \
+  --claim 40_handoffs/session_claims/YOUR-CLAIM.md
 ```
 
 Limits (honest ones):
@@ -105,6 +110,7 @@ Limits (honest ones):
 - read-only, local-filesystem only
 - `dry_run_*` is self-attested metadata
 - **not** a distributed lock
+- malformed existing claims fail closed (unless `--ignore-invalid-claims`)
 
 Details: [docs/session-claims-and-closeout.md](docs/session-claims-and-closeout.md)
 
@@ -117,11 +123,11 @@ Details: [docs/session-claims-and-closeout.md](docs/session-claims-and-closeout.
 | `scripts/check_vault_structure.py` | Skeleton existence |
 | `scripts/check_memory_governance.py` | Strict decisions + soft validation/handoff/claims |
 | `scripts/check_session_claims.py` | Claim shape, expiry, path conflicts |
-| `scripts/check_claim_gate.py` | Pre-write conflict check for planned paths |
-| `scripts/check_privacy_scan.py` | Pre-publish secret/path scan |
+| `scripts/check_claim_gate.py` | Pre-write conflict check (`--session-id` / `--claim` exclude self; fail-closed on bad claims) |
+| `scripts/check_privacy_scan.py` | Pre-publish secret/path scan (secrets redacted in output) |
 | `scripts/fix_vault_structure.py` | Optional dry-run / `--apply` skeleton repair |
 
-Field contracts: `schemas/*.json` (zero third-party deps).
+Field contracts: `schemas/*.json` (zero third-party deps). Layout SSoT: `schemas/vault_layout.json`.
 
 ## Repository layout
 

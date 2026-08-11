@@ -1,7 +1,15 @@
 # Optimization Notes
 
 Date: 2026-08-11  
-Current public target: **0.4.0** (adoption / star-readiness, still no OSS-form rush)
+Current public target: **0.4.1** (P0 correctness / security hotfixes)
+
+## 0.4.1 shipped (P0)
+
+1. Claim gate excludes own `session_id` (`--session-id` / `--claim`).
+2. Claim gate fails closed on invalid existing claims.
+3. Shared path safety for project slugs and vault-relative paths.
+4. Privacy scanner redacts hard secrets in reports (CI-safe).
+5. `schemas/vault_layout.json` is SSoT for skeleton file/dir kinds.
 
 ## Decisions
 

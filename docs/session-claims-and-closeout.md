@@ -47,16 +47,32 @@ detection. Use `--fail-on-expired` to harden CI.
 
 1. Copy `templates/session_claim.md` into `40_handoffs/session_claims/`.
 2. Fill session identity, planned paths, `claimed_by`, and `expires_at`.
-3. Before contested writes, run the claim gate:
+3. Before contested writes, run the claim gate **excluding your own session**:
 
 ```bash
+# Prefer: pass the claim file (loads session_id + planned_paths)
 python3 scripts/check_claim_gate.py ../my-agent-brain \
+  --claim 40_handoffs/session_claims/YYYYMMDD-my-claim.md
+
+# Or: explicit session id + paths
+python3 scripts/check_claim_gate.py ../my-agent-brain \
+  --session-id YYYYMMDD-my-session \
   --path 10_projects/example-app/10_current_work/INDEX.md
 ```
+
+Without `--session-id` / `--claim`, the gate treats **all** active claims as
+foreign, so your own claim looks like a conflict (incorrect for the author).
 
 4. Run a dry-run or equivalent read-only validation and summarize its result.
 5. Run `scripts/check_session_claims.py` before closeout.
 6. Mark the claim closed only when the planned scope is complete.
+
+## Fail closed on invalid claims
+
+If any existing claim file is malformed or unreadable, the gate sets
+`allowed=false` with `errors: ["invalid_existing_claim"]`.
+
+Opt-in escape hatch (unsafe): `--ignore-invalid-claims`.
 
 ## Dry-run fields are self-attested
 

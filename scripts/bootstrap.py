@@ -5,8 +5,14 @@ from __future__ import annotations
 
 import argparse
 import shutil
+import sys
 from pathlib import Path
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from lib.path_safety import PathSafetyError, validate_project_slug
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE_ROOT = REPO_ROOT / "templates" / "vault"
@@ -43,20 +49,17 @@ def _copy_record_templates(destination: Path) -> list[str]:
 
 
 def _ensure_project(destination: Path, project: str) -> None:
-    root = destination / "10_projects" / project
+    slug = validate_project_slug(project)
+    root = destination / "10_projects" / slug
     for rel, content in PROJECT_FILES.items():
         path = root / rel
         path.parent.mkdir(parents=True, exist_ok=True)
         if not path.exists():
-            path.write_text(content.format(project=project), encoding="utf-8")
-    # Remove default example-app if user chose another project name and example exists unused
-    example = destination / "10_projects" / "example-app"
-    if project != "example-app" and example.exists():
-        # keep example-app as additional sample; do not delete user content
-        pass
+            path.write_text(content.format(project=slug), encoding="utf-8")
 
 
 def _refresh_session_card(destination: Path, project: str) -> None:
+    slug = validate_project_slug(project)
     card = destination / "00_entrypoint" / "SESSION_START_CARD.md"
     card.parent.mkdir(parents=True, exist_ok=True)
     card.write_text(
@@ -64,10 +67,12 @@ def _refresh_session_card(destination: Path, project: str) -> None:
 
 This vault was bootstrapped for local multi-agent memory.
 
-1. Read this card and `10_projects/{project}/PROJECT_OVERVIEW.md`.
+1. Read this card and `10_projects/{slug}/PROJECT_OVERVIEW.md`.
 2. Read current work, handoff, validation, decisions, and source indexes.
 3. Create a session claim before editing shared records in multi-agent work.
-4. Run `python3 scripts/check_claim_gate.py <vault> --path <relative-path>` before contested writes.
+4. Before contested writes, run claim gate with your session id so your own claim is excluded:
+   `python3 scripts/check_claim_gate.py <vault> --session-id <id> --path <relative-path>`
+   or `python3 scripts/check_claim_gate.py <vault> --claim 40_handoffs/session_claims/<claim>.md`
 5. Never store secrets, raw conversations, databases, logs, or customer data here.
 """,
         encoding="utf-8",
@@ -75,6 +80,7 @@ This vault was bootstrapped for local multi-agent memory.
 
 
 def bootstrap(destination: Path, project: str = "example-app") -> dict[str, object]:
+    slug = validate_project_slug(project)
     destination = destination.expanduser().resolve()
     if destination.exists():
         if any(destination.iterdir()):
@@ -85,8 +91,8 @@ def bootstrap(destination: Path, project: str = "example-app") -> dict[str, obje
     shutil.copytree(TEMPLATE_ROOT, destination, dirs_exist_ok=destination.exists())
     shutil.copy2(REPO_ROOT / "AGENTS.md", destination / "AGENTS.md")
     copied_templates = _copy_record_templates(destination)
-    _ensure_project(destination, project)
-    _refresh_session_card(destination, project)
+    _ensure_project(destination, slug)
+    _refresh_session_card(destination, slug)
 
     gitignore = destination / ".gitignore"
     if not gitignore.exists():
@@ -94,7 +100,7 @@ def bootstrap(destination: Path, project: str = "example-app") -> dict[str, obje
 
     return {
         "destination": str(destination),
-        "project": project,
+        "project": slug,
         "copied_record_templates": copied_templates,
         "read_only": False,
     }
@@ -108,6 +114,8 @@ def main() -> int:
     try:
         result = bootstrap(args.destination, project=args.project)
     except FileExistsError as exc:
+        parser.error(str(exc))
+    except PathSafetyError as exc:
         parser.error(str(exc))
     print(f"created vault: {result['destination']}")
     print(f"project: {result['project']}")

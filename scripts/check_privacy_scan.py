@@ -3,11 +3,14 @@
 
 This is a pre-publish safety net. It is intentionally conservative and may
 produce false positives that still deserve a human look.
+
+Hard-secret findings never include the raw secret in report detail.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -89,6 +92,21 @@ def load_allowlist(root: Path) -> set[str]:
     return items
 
 
+def fingerprint_secret(value: str) -> str:
+    digest = hashlib.sha256(value.encode("utf-8", errors="replace")).hexdigest()
+    return f"sha256:{digest[:16]}"
+
+
+def redact_secret_detail(line: str, pattern: re.Pattern[str], match: re.Match[str]) -> str:
+    """Return a short detail string with the matched secret replaced by [REDACTED]."""
+    start, end = match.span()
+    redacted = f"{line[:start]}[REDACTED]{line[end:]}"
+    stripped = redacted.strip()
+    if len(stripped) > 160:
+        stripped = stripped[:157] + "..."
+    return stripped
+
+
 def iter_text_files(root: Path):
     root = root.resolve()
     for path in sorted(root.rglob("*")):
@@ -107,53 +125,67 @@ def iter_text_files(root: Path):
         yield path
 
 
+def _finding(
+    relative: str,
+    name: str,
+    line_no: int,
+    *,
+    detail: str,
+    fingerprint: str | None = None,
+) -> dict[str, object]:
+    item: dict[str, object] = {
+        "path": relative,
+        "severity": name,
+        "line": line_no,
+        "detail": detail,
+    }
+    if fingerprint:
+        item["fingerprint"] = fingerprint
+    return item
+
+
 def scan_file(root: Path, path: Path, allowlist: set[str]) -> list[dict[str, object]]:
     try:
         text = path.read_text(encoding="utf-8")
     except (OSError, UnicodeError):
         return [
-            {
-                "path": str(path.relative_to(root)),
-                "severity": "unreadable_text",
-                "line": 0,
-                "detail": "could not read as utf-8 text",
-            }
+            _finding(
+                str(path.relative_to(root)),
+                "unreadable_text",
+                0,
+                detail="could not read as utf-8 text",
+            )
         ]
 
     findings: list[dict[str, object]] = []
     relative = str(path.relative_to(root))
-    notes: list[str] = []
-    if "80_sensitive_isolation" in relative.replace("\\", "/"):
-        notes.append("path is under sensitive isolation; keep contents out of git")
 
     for line_no, line in enumerate(text.splitlines(), start=1):
         stripped = line.strip()
-        if any(snippet in stripped for snippet in ALLOWLIST_SNIPPETS) or any(item in stripped for item in allowlist):
-            # Still check hard secrets on allowlisted lines.
-            for name, pattern in SECRET_PATTERNS:
-                if pattern.search(line):
-                    findings.append(
-                        {
-                            "path": relative,
-                            "severity": name,
-                            "line": line_no,
-                            "detail": stripped[:160],
-                        }
-                    )
-            continue
-        for name, pattern in SECRET_PATTERNS + RISK_PATTERNS:
-            if pattern.search(line):
+        allowlisted = any(snippet in stripped for snippet in ALLOWLIST_SNIPPETS) or any(
+            item in stripped for item in allowlist
+        )
+        # Always check hard secrets, even on allowlisted lines.
+        for name, pattern in SECRET_PATTERNS:
+            match = pattern.search(line)
+            if match:
                 findings.append(
-                    {
-                        "path": relative,
-                        "severity": name,
-                        "line": line_no,
-                        "detail": stripped[:160],
-                    }
+                    _finding(
+                        relative,
+                        name,
+                        line_no,
+                        detail=redact_secret_detail(line, pattern, match),
+                        fingerprint=fingerprint_secret(match.group(0)),
+                    )
                 )
-    if notes and not findings:
-        # advisory only, not a failure
-        pass
+        if allowlisted:
+            continue
+        for name, pattern in RISK_PATTERNS:
+            match = pattern.search(line)
+            if match:
+                # Risk findings may show context but still avoid huge dumps.
+                detail = stripped[:160]
+                findings.append(_finding(relative, name, line_no, detail=detail))
     return findings
 
 

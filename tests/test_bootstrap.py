@@ -36,6 +36,14 @@ class BootstrapTests(unittest.TestCase):
             with self.assertRaises(FileExistsError):
                 BOOTSTRAP.bootstrap(destination)
 
+    def test_bootstrap_rejects_project_escape(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            destination = Path(directory) / "vault"
+            with self.assertRaises(BOOTSTRAP.PathSafetyError):
+                BOOTSTRAP.bootstrap(destination, project="../../outside")
+            with self.assertRaises(BOOTSTRAP.PathSafetyError):
+                BOOTSTRAP.bootstrap(destination, project="/tmp/foo")
+
 
 if __name__ == "__main__":
     unittest.main()

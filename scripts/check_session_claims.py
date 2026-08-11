@@ -15,6 +15,7 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from lib.frontmatter import parse_frontmatter
+from lib.path_safety import safe_relative_path
 from lib.schema import (
     ValidationIssue,
     frontmatter_errors_to_issues,
@@ -24,19 +25,6 @@ from lib.schema import (
     parse_expires_at,
     validate_against_schema,
 )
-
-
-def safe_relative_path(root: Path, raw: str) -> str | None:
-    if not raw or str(raw).startswith(("/", "~")) or "\\" in str(raw):
-        return None
-    parts = str(raw).split("/")
-    if any(part in {"", ".", ".."} for part in parts):
-        return None
-    candidate = (root / raw).resolve(strict=False)
-    try:
-        return str(candidate.relative_to(root.resolve()))
-    except ValueError:
-        return None
 
 
 def overlaps(left: str, right: str) -> bool:

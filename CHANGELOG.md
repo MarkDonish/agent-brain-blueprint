@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.1 - 2026-08-11
+
+Correctness and security hotfixes (optimization doc P0; no large features).
+
+- **Claim gate self-exclusion:** `--session-id` and `--claim` exclude the caller's own active claim.
+- **Claim gate fail-closed:** malformed/unreadable existing claims deny the gate unless `--ignore-invalid-claims`.
+- **Path safety:** shared `scripts/lib/path_safety.py` for project slug + vault-relative containment; bootstrap rejects escapes.
+- **Privacy redaction:** hard-secret findings never print raw secrets; detail uses `[REDACTED]` + optional fingerprint.
+- **Vault layout SSoT:** `schemas/vault_layout.json` with explicit `file`/`directory` kinds (`.gitkeep` is a file).
+- Structure checker and fixer consume the layout manifest; regression tests for all of the above.
+
 ## 0.4.0 - 2026-08-11
 
 - Expand `examples/demo-vault/` into a full fictional multi-agent story (claims, handoff, decision, validation).

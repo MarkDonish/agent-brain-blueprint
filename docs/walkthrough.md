@@ -24,8 +24,13 @@ python3 scripts/check_session_claims.py examples/demo-vault
 python3 scripts/check_claim_gate.py examples/demo-vault \
   --path 10_projects/demo-notes-app/60_summaries/INDEX.md
 
-# Claimed path — Codex already owns current_work
+# Foreign session — Codex already owns current_work
 python3 scripts/check_claim_gate.py examples/demo-vault \
+  --path 10_projects/demo-notes-app/10_current_work/INDEX.md
+
+# Owner session — exclude self (standard post-claim workflow)
+python3 scripts/check_claim_gate.py examples/demo-vault \
+  --session-id 20260801-0900-codex-auth \
   --path 10_projects/demo-notes-app/10_current_work/INDEX.md
 ```
 
@@ -34,7 +39,8 @@ What you should see:
 - doctor: structure + governance + claims pass
 - two active claims with **different** planned paths
 - free path gate: `allowed=true`
-- claimed path gate: `allowed=false` with a conflict pointing at the Codex claim
+- foreign gate on current_work: `allowed=false` (Codex claim conflict)
+- owner gate with `--session-id`: `allowed=true` (self excluded)
 
 ## 3. Follow the story files
 

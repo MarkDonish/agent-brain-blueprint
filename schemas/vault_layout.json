@@ -1,0 +1,28 @@
+{
+  "format_version": 1,
+  "description": "Single source of truth for vault skeleton paths (kind: file|directory).",
+  "paths": [
+    {"path": "AGENTS.md", "kind": "file", "required": true},
+    {"path": "00_entrypoint/SESSION_START_CARD.md", "kind": "file", "required": true},
+    {"path": "10_projects", "kind": "directory", "required": true},
+    {"path": "20_agent_catalog", "kind": "directory", "required": true},
+    {"path": "30_global_decisions", "kind": "directory", "required": true},
+    {"path": "40_handoffs/session_claims", "kind": "directory", "required": true},
+    {"path": "40_handoffs/session_claims/.gitkeep", "kind": "file", "required": true},
+    {"path": "50_retrieval", "kind": "directory", "required": true},
+    {"path": "60_templates", "kind": "directory", "required": true},
+    {"path": "70_inbox", "kind": "directory", "required": true},
+    {"path": "80_sensitive_isolation", "kind": "directory", "required": true},
+    {"path": "90_archive", "kind": "directory", "required": true}
+  ],
+  "project_paths": [
+    {"path": "PROJECT_OVERVIEW.md", "kind": "file", "required": true},
+    {"path": "10_current_work", "kind": "directory", "required": true},
+    {"path": "20_handoffs", "kind": "directory", "required": true},
+    {"path": "30_docs", "kind": "directory", "required": true},
+    {"path": "40_validation", "kind": "directory", "required": true},
+    {"path": "50_decisions", "kind": "directory", "required": true},
+    {"path": "60_summaries", "kind": "directory", "required": true},
+    {"path": "90_raw_sources", "kind": "directory", "required": true}
+  ]
+}
