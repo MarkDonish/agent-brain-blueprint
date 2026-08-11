@@ -15,10 +15,11 @@ Thanks for helping improve a local-first multi-agent memory blueprint.
 ## Dev loop
 
 ```bash
+export PYTHONPATH=src:scripts   # for CLI during development
 make verify
 ```
 
-That runs unit tests, template doctor, privacy scan, and bootstrap smoke.
+That runs unit tests, template doctor, privacy scan, bootstrap smoke, and CLI smoke.
 
 Useful singles:
 

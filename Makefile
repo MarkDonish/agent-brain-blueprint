@@ -1,6 +1,8 @@
 PYTHON ?= python3
+export PYTHONPATH := src:scripts$(if $(PYTHONPATH),:$(PYTHONPATH),)
+AB := $(PYTHON) -m agent_brain
 
-.PHONY: test doctor privacy bootstrap-smoke demo-doctor verify
+.PHONY: test doctor privacy bootstrap-smoke demo-doctor cli-smoke verify
 
 test:
 	$(PYTHON) -m unittest discover -s tests -v
@@ -29,4 +31,14 @@ bootstrap-smoke:
 	$(PYTHON) scripts/doctor.py /tmp/agent-brain-blueprint-smoke-vault
 	$(PYTHON) scripts/check_claim_gate.py /tmp/agent-brain-blueprint-smoke-vault --path 10_projects/example-app/10_current_work/INDEX.md
 
-verify: test doctor demo-doctor privacy bootstrap-smoke
+cli-smoke:
+	$(AB) --version
+	rm -rf /tmp/agent-brain-cli-smoke-vault
+	$(AB) init --destination /tmp/agent-brain-cli-smoke-vault --project cli-app
+	$(AB) doctor /tmp/agent-brain-cli-smoke-vault
+	$(AB) project list /tmp/agent-brain-cli-smoke-vault
+	$(AB) claim acquire /tmp/agent-brain-cli-smoke-vault --session-id smoke --task "cli smoke" --path 10_projects/cli-app/10_current_work/INDEX.md --filename smoke-claim.md
+	$(AB) claim gate /tmp/agent-brain-cli-smoke-vault --claim 40_handoffs/session_claims/smoke-claim.md
+	$(AB) privacy .
+
+verify: test doctor demo-doctor privacy bootstrap-smoke cli-smoke

@@ -66,16 +66,29 @@ flowchart LR
 ```bash
 git clone https://github.com/MarkDonish/agent-brain-blueprint.git
 cd agent-brain-blueprint
-python3 scripts/bootstrap.py --destination ../my-agent-brain --project example-app
-python3 scripts/doctor.py ../my-agent-brain
-python3 scripts/check_claim_gate.py ../my-agent-brain \
+
+# Recommended: unified CLI (dev PYTHONPATH; or: pip install -e .)
+export PYTHONPATH=src:scripts
+python -m agent_brain init --destination ../my-agent-brain --project example-app
+python -m agent_brain doctor ../my-agent-brain
+python -m agent_brain claim acquire ../my-agent-brain \
+  --session-id demo-session \
+  --task "Start work" \
   --path 10_projects/example-app/10_current_work/INDEX.md
-python3 scripts/check_privacy_scan.py .
+python -m agent_brain claim gate ../my-agent-brain \
+  --claim 40_handoffs/session_claims/<claim-file>.md
+python -m agent_brain privacy .
+
+# Legacy scripts still work
+python3 scripts/bootstrap.py --destination ../my-agent-brain-alt --project example-app
+python3 scripts/doctor.py ../my-agent-brain-alt
 ```
 
 Bootstrap creates a new local vault from the templates, copies record templates
-into `60_templates/`, installs a vault `.gitignore`, and refuses non-empty
-destinations.
+into `60_templates/`, installs a vault `.gitignore`, writes
+`.agent-brain/manifest.json`, and refuses non-empty destinations.
+
+Full command reference: [docs/cli.md](docs/cli.md).
 
 ## Design principles
 
@@ -116,18 +129,32 @@ Details: [docs/session-claims-and-closeout.md](docs/session-claims-and-closeout.
 
 ## Tooling
 
+### CLI (0.6+)
+
+| Command | Purpose |
+| --- | --- |
+| `agent-brain init` | Bootstrap vault |
+| `agent-brain doctor` | Format + structure + governance + claims |
+| `agent-brain claim acquire\|gate\|status\|close` | Session claims workflow |
+| `agent-brain project list\|add` | Project skeletons |
+| `agent-brain privacy` | Pre-publish secret/path scan |
+| `agent-brain migrate` | Write format manifest |
+| `agent-brain record validate\|id` | Governance / ULID helper |
+
+### Legacy scripts (compatibility)
+
 | Script | Purpose |
 | --- | --- |
-| `scripts/bootstrap.py` | Create a new local vault (`--project` supported; writes format manifest) |
-| `scripts/doctor.py` | Format + structure + governance + claims with repair hints |
-| `scripts/check_vault_format.py` | Vault format version / manifest compatibility |
-| `scripts/write_vault_manifest.py` | Migrate pre-0.5 vaults by writing `.agent-brain/manifest.json` |
+| `scripts/bootstrap.py` | Create a new local vault |
+| `scripts/doctor.py` | Multi-check doctor |
+| `scripts/check_vault_format.py` | Manifest / format version |
+| `scripts/write_vault_manifest.py` | Migrate pre-0.5 vaults |
 | `scripts/check_vault_structure.py` | Skeleton existence |
-| `scripts/check_memory_governance.py` | Strict decisions + soft validation/handoff/claims |
-| `scripts/check_session_claims.py` | Claim shape, expiry, path conflicts |
-| `scripts/check_claim_gate.py` | Pre-write conflict check (`--session-id` / `--claim` exclude self; fail-closed on bad claims) |
-| `scripts/check_privacy_scan.py` | Pre-publish secret/path scan (secrets redacted in output) |
-| `scripts/fix_vault_structure.py` | Optional dry-run / `--apply` skeleton repair |
+| `scripts/check_memory_governance.py` | Governance |
+| `scripts/check_session_claims.py` | Claim shape / conflicts |
+| `scripts/check_claim_gate.py` | Pre-write gate |
+| `scripts/check_privacy_scan.py` | Privacy scan |
+| `scripts/fix_vault_structure.py` | Skeleton repair |
 
 Field contracts: `schemas/*.json` (zero third-party deps). Layout SSoT: `schemas/vault_layout.json`.
 

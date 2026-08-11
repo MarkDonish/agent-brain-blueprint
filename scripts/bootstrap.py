@@ -71,9 +71,9 @@ This vault was bootstrapped for local multi-agent memory.
 1. Read this card and `10_projects/{slug}/PROJECT_OVERVIEW.md`.
 2. Read current work, handoff, validation, decisions, and source indexes.
 3. Create a session claim before editing shared records in multi-agent work.
-4. Before contested writes, run claim gate with your session id so your own claim is excluded:
-   `python3 scripts/check_claim_gate.py <vault> --session-id <id> --path <relative-path>`
-   or `python3 scripts/check_claim_gate.py <vault> --claim 40_handoffs/session_claims/<claim>.md`
+4. Prefer the unified CLI (from the blueprint checkout: `PYTHONPATH=src:scripts`):
+   `python -m agent_brain claim gate <vault> --claim 40_handoffs/session_claims/<claim>.md`
+   Legacy scripts still work: `python3 scripts/check_claim_gate.py ... --session-id <id>`
 5. Never store secrets, raw conversations, databases, logs, or customer data here.
 """,
         encoding="utf-8",

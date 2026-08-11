@@ -1,7 +1,14 @@
 # Optimization Notes
 
 Date: 2026-08-11  
-Current public target: **0.5.0** (vault format + schema foundation)
+Current public target: **0.6.0** (unified CLI)
+
+## 0.6.0 shipped (CLI)
+
+1. `python -m agent_brain` / `agent-brain` entrypoint (`src/agent_brain`).
+2. Init/doctor/privacy/migrate/project/claim/record commands wrap existing scripts.
+3. Claim acquire/close as first-class local file operations (still not a lock).
+4. Zero third-party runtime deps; scripts kept for compatibility.
 
 ## 0.5.0 shipped (format foundation)
 

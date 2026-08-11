@@ -15,7 +15,19 @@ jobs:
           python-version: '3.11'
 
       - name: Unit tests
+        env:
+          PYTHONPATH: src:scripts
         run: python -m unittest discover -s tests -v
+
+      - name: CLI smoke
+        env:
+          PYTHONPATH: src:scripts
+        run: |
+          python -m agent_brain --version
+          python -m agent_brain init --destination "$RUNNER_TEMP/cli-vault" --project cli-app
+          python -m agent_brain doctor "$RUNNER_TEMP/cli-vault"
+          python -m agent_brain claim acquire "$RUNNER_TEMP/cli-vault" --session-id ci --task "ci" --path 10_projects/cli-app/10_current_work/INDEX.md --filename ci-claim.md
+          python -m agent_brain claim gate "$RUNNER_TEMP/cli-vault" --claim 40_handoffs/session_claims/ci-claim.md
 
       - name: Template vault checks
         run: |

@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-brain-blueprint"
+version = "0.6.0"
+description = "Local-first Markdown vault blueprint and CLI for multi-agent shared memory"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "MarkDonish" }]
+keywords = ["multi-agent", "markdown", "memory", "codex", "local-first"]
+classifiers = [
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Environment :: Console",
+  "Topic :: Software Development :: Libraries",
+]
+# Zero runtime third-party dependencies.
+dependencies = []
+
+[project.scripts]
+agent-brain = "agent_brain.cli.main:main"
+
+[project.urls]
+Homepage = "https://github.com/MarkDonish/agent-brain-blueprint"
+Repository = "https://github.com/MarkDonish/agent-brain-blueprint"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+agent_brain = ["py.typed"]

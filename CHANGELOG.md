@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.0 - 2026-08-11
+
+Unified CLI productization (scripts remain compatibility wrappers).
+
+- Add installable package `src/agent_brain` + `pyproject.toml` entrypoint `agent-brain`.
+- Commands: `init`, `doctor`, `format`, `privacy`, `migrate`, `structure-fix`, `project list|add`, `claim acquire|gate|status|close`, `record validate|id`.
+- `claim acquire` / `claim close` write vault-relative claim files with path safety.
+- Defer `context` / `retrieve` / `memory` subcommands to 0.7+ (explicit exit with message).
+- Tool version bump to 0.6.0; docs: `docs/cli.md`; Makefile `cli-smoke` in `make verify`.
+
 ## 0.5.0 - 2026-08-11
 
 Vault format and schema foundation (optimization doc data-layer phase).
