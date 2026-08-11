@@ -1,5 +1,6 @@
 .DS_Store
 .env
+.env.*
 *.log
 *.sqlite
 *.sqlite3
@@ -8,10 +9,26 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .venv/
+venv/
 data/
 indexes/
 cache/
 logs/
 private/
+*.pem
+*.key
+*.p12
+*.pfx
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Local bootstrap experiments
+/tmp-vaults/
+/my-agent-brain/
+
+# Session claims often contain local task context.
 **/session_claims/*.md
 !**/session_claims/.gitkeep

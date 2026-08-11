@@ -1,0 +1,29 @@
+.DS_Store
+.env
+.env.*
+*.log
+*.sqlite
+*.sqlite3
+*.db
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+data/
+indexes/
+cache/
+logs/
+private/
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Session claims often contain local task context; keep the folder, ignore the files.
+40_handoffs/session_claims/*.md
+!40_handoffs/session_claims/.gitkeep
+
+# Never commit isolated sensitive material.
+80_sensitive_isolation/**
+!80_sensitive_isolation/README.md
+!80_sensitive_isolation/.gitkeep

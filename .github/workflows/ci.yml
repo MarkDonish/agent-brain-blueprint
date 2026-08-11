@@ -9,10 +9,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: python -m unittest discover -s tests -v
-      - run: python scripts/check_memory_governance.py templates/vault
-      - run: python scripts/check_session_claims.py templates/vault
-      - run: python scripts/doctor.py templates/vault
+
+      - name: Unit tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Template vault checks
+        run: |
+          python scripts/check_vault_structure.py templates/vault
+          python scripts/check_memory_governance.py templates/vault
+          python scripts/check_session_claims.py templates/vault
+          python scripts/doctor.py templates/vault
+
+      - name: Privacy scan (public checkout)
+        run: python scripts/check_privacy_scan.py .
+
+      - name: Bootstrap smoke test
+        run: |
+          python scripts/bootstrap.py --destination "$RUNNER_TEMP/demo-vault"
+          python scripts/doctor.py "$RUNNER_TEMP/demo-vault"
+          python scripts/check_privacy_scan.py "$RUNNER_TEMP/demo-vault"

@@ -26,17 +26,16 @@ state, handoffs, durable decisions, validation records, and retrieval hints.
 ## Quick start
 
 ```bash
-git clone https://github.com/your-account/agent-brain-blueprint.git
+git clone https://github.com/MarkDonish/agent-brain-blueprint.git
 cd agent-brain-blueprint
 python3 scripts/bootstrap.py --destination ../my-agent-brain
-python3 scripts/check_memory_governance.py ../my-agent-brain
-python3 scripts/check_session_claims.py ../my-agent-brain
 python3 scripts/doctor.py ../my-agent-brain
+python3 scripts/check_privacy_scan.py .
 ```
 
-The bootstrap command creates a new local vault from the templates. It never
-copies this repository's examples into an existing vault without an explicit
-destination.
+The bootstrap command creates a new local vault from the templates. It copies
+record templates into `60_templates/`, installs a vault `.gitignore`, and never
+writes into a non-empty destination.
 
 ## Repository layout
 
@@ -46,8 +45,8 @@ docs/                             architecture, privacy, and closeout guidance
 templates/vault/                  the bootstrap source
 templates/*.md                    record templates for human and agent use
 scripts/                          dependency-free validation tools
-tests/                            focused regression tests for the claim checker
-examples/demo-vault/              fictional, safe reference content
+tests/                            focused regression tests
+examples/demo-vault/              fictional, safe reference note
 ```
 
 The generated vault uses these top-level areas:
@@ -60,7 +59,21 @@ The generated vault uses these top-level areas:
 40_handoffs/                      narrow cross-agent handoffs and claims
 50_retrieval/                     retrieval protocol and optional adapters
 60_templates/                     local copies of the templates
+70_inbox/                         unprocessed source pointers
+80_sensitive_isolation/           hard boundary for material that must not be published
 90_archive/                       historical records that are no longer current
+```
+
+Each sample project also includes:
+
+```text
+10_current_work/
+20_handoffs/
+30_docs/
+40_validation/
+50_decisions/
+60_summaries/
+90_raw_sources/
 ```
 
 ## Session claims and closeout
@@ -108,16 +121,37 @@ Do not add any of these to the vault or this public repository:
 Use fictional names such as `example-app`, `demo-user`, and `/path/to/vault` in
 documentation and tests. Review every file before publishing a derivative.
 
+```bash
+python3 scripts/check_privacy_scan.py .
+python3 scripts/check_privacy_scan.py . --strict
+```
+
+## Tooling
+
+| Script | Purpose |
+| --- | --- |
+| `scripts/bootstrap.py` | Create a new local vault |
+| `scripts/doctor.py` | Run structure + governance + claim checks |
+| `scripts/check_vault_structure.py` | Verify the expected skeleton |
+| `scripts/check_memory_governance.py` | Require provenance fields on durable records |
+| `scripts/check_session_claims.py` | Validate claim shape and conflicts |
+| `scripts/check_privacy_scan.py` | Pre-publish secret/path leak scan |
+
+All scripts are dependency-free Python 3.
+
 ## Verification
 
 ```bash
+make verify
+# or:
 python3 -m unittest discover -s tests -v
-python3 scripts/check_memory_governance.py templates/vault
-python3 scripts/check_session_claims.py templates/vault
 python3 scripts/doctor.py templates/vault
+python3 scripts/check_privacy_scan.py .
+python3 scripts/bootstrap.py --destination /tmp/agent-brain-blueprint-smoke-vault
 ```
 
-`doctor.py` combines the lightweight checks. It is read-only.
+`doctor.py` is read-only. The privacy scanner fails the build on hard secret
+patterns and can optionally fail on home paths and emails with `--strict`.
 
 ## License
 

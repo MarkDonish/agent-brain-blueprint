@@ -53,6 +53,23 @@ class ClaimTests(unittest.TestCase):
             result = CLAIMS.claim_result(root, claim)
             self.assertEqual(result["errors"], [])
 
+    def test_rejects_absolute_planned_path(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            claim = root / "claim.md"
+            claim.write_text(record(["/tmp/outside.md"]), encoding="utf-8")
+            result = CLAIMS.claim_result(root, claim)
+            self.assertTrue(any("unsafe planned path" in error for error in result["errors"]))
+
+    def test_closed_status_requires_closed_closeout(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            claim = root / "claim.md"
+            text = record(["10_projects/example/file.md"]).replace("status: active", "status: closed")
+            claim.write_text(text, encoding="utf-8")
+            result = CLAIMS.claim_result(root, claim)
+            self.assertIn("closed status requires closed closeout_state", result["errors"])
+
 
 if __name__ == "__main__":
     unittest.main()
