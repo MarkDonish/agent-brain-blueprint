@@ -69,6 +69,51 @@ owner: demo-user
             result = GOVERNANCE.check_file(root, record, "memory_record", "strict")
             self.assertEqual(result["errors"], [])
 
+    def test_production_risk_requires_verified(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            decisions = root / "30_global_decisions"
+            decisions.mkdir()
+            record = decisions / "decision.md"
+            record.write_text(
+                """---
+memory_type: decision
+source: test
+confidence: pending
+freshness: current
+scope: project
+risk_boundary: production
+next_review: 2026-02-01
+owner: demo-user
+---
+# risky
+""",
+                encoding="utf-8",
+            )
+            result = GOVERNANCE.check_file(root, record, "memory_record", "strict")
+            self.assertTrue(
+                any("production risk_boundary requires confidence=verified" in e for e in result["errors"])
+            )
+
+    def test_validation_pass_needs_evidence_warning(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / "10_projects" / "app" / "40_validation" / "v.md"
+            path.parent.mkdir(parents=True)
+            path.write_text(
+                """---
+memory_type: validation
+status: pass
+owner: demo-user
+---
+# bare pass
+""",
+                encoding="utf-8",
+            )
+            result = GOVERNANCE.check_file(root, path, "validation", "soft")
+            self.assertEqual(result["errors"], [])
+            self.assertTrue(any("commands or evidence_ref" in w for w in result["warnings"]))
+
 
 if __name__ == "__main__":
     unittest.main()

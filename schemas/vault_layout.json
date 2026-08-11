@@ -3,6 +3,8 @@
   "description": "Single source of truth for vault skeleton paths (kind: file|directory).",
   "paths": [
     {"path": "AGENTS.md", "kind": "file", "required": true},
+    {"path": ".agent-brain", "kind": "directory", "required": true},
+    {"path": ".agent-brain/manifest.json", "kind": "file", "required": true},
     {"path": "00_entrypoint/SESSION_START_CARD.md", "kind": "file", "required": true},
     {"path": "10_projects", "kind": "directory", "required": true},
     {"path": "20_agent_catalog", "kind": "directory", "required": true},

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.0 - 2026-08-11
+
+Vault format and schema foundation (optimization doc data-layer phase).
+
+- Add `.agent-brain/manifest.json` (`vault_format_version: 1`) on bootstrap; `check_vault_format.py` + `write_vault_manifest.py`.
+- Require `.agent-brain/` in `schemas/vault_layout.json`; doctor runs format check first.
+- Stable optional `record_id` (Crockford ULID) via `scripts/lib/record_id.py` and schema type `record_id`.
+- Taxonomy: optional `record_type`, `knowledge_type`, lifecycle `state` (keep `memory_type` for compatibility).
+- Claim state machine: `expires_at > claimed_at`, blocked needs `blocker`, closeout/status coupling, duplicate active `session_id`.
+- Governance lifecycle: production risk requires `verified`; past `review_after`/`next_review` warns; validation `pass` needs commands or evidence.
+- Docs: `docs/vault-format.md`, `docs/instruction-boundary.md`.
+
 ## 0.4.1 - 2026-08-11
 
 Correctness and security hotfixes (optimization doc P0; no large features).

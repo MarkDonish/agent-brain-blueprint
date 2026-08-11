@@ -12,7 +12,9 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from lib.path_safety import PathSafetyError, project_dir, validate_project_slug
+from lib.vault_format import default_manifest
 from lib.vault_layout import required_entries
+import json
 
 
 def missing_entries(root: Path, project: str | None = None) -> list[tuple[Path, str]]:
@@ -59,6 +61,8 @@ def apply(entries: list[tuple[Path, str]]) -> None:
             continue
         if path.name == ".gitkeep":
             path.write_text("", encoding="utf-8")
+        elif path.name == "manifest.json" and path.parent.name == ".agent-brain":
+            path.write_text(json.dumps(default_manifest(), indent=2) + "\n", encoding="utf-8")
         elif path.suffix == ".md":
             title = path.stem.replace("_", " ")
             path.write_text(

@@ -13,6 +13,7 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from lib.path_safety import PathSafetyError, validate_project_slug
+from lib.vault_format import write_manifest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE_ROOT = REPO_ROOT / "templates" / "vault"
@@ -98,10 +99,13 @@ def bootstrap(destination: Path, project: str = "example-app") -> dict[str, obje
     if not gitignore.exists():
         shutil.copy2(TEMPLATE_ROOT / ".gitignore", gitignore)
 
+    manifest = write_manifest(destination)
+
     return {
         "destination": str(destination),
         "project": slug,
         "copied_record_templates": copied_templates,
+        "manifest": str(manifest),
         "read_only": False,
     }
 

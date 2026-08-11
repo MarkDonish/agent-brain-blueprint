@@ -2,12 +2,37 @@
   "name": "validation",
   "description": "Evidence before declaring work complete.",
   "required": ["memory_type", "status", "owner"],
-  "optional": ["title", "created_at", "source", "confidence", "freshness", "scope", "risk_boundary", "next_review", "evidence", "commands"],
+  "optional": [
+    "title",
+    "created_at",
+    "source",
+    "confidence",
+    "freshness",
+    "scope",
+    "risk_boundary",
+    "next_review",
+    "evidence",
+    "commands",
+    "evidence_ref",
+    "executed_at",
+    "validator",
+    "exit_code",
+    "record_id",
+    "record_type",
+    "state"
+  ],
   "fields": {
     "memory_type": {"type": "enum", "enum": "memory_type"},
     "status": {"type": "enum", "enum": "validation_status"},
     "owner": {"type": "string"},
     "evidence": {"type": "string"},
-    "commands": {"type": "string"}
+    "commands": {"type": "string"},
+    "evidence_ref": {"type": "string"},
+    "executed_at": {"type": "string"},
+    "validator": {"type": "string"},
+    "exit_code": {"type": "string"},
+    "record_id": {"type": "record_id"},
+    "record_type": {"type": "enum", "enum": "record_type"},
+    "state": {"type": "enum", "enum": "lifecycle_state"}
   }
 }

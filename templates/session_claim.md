@@ -3,10 +3,12 @@
 # Checked by: scripts/check_session_claims.py (and soft governance)
 # Required fields: session_id, task, claimed_at, status, planned_paths,
 # dry_run_*, closeout_*, next_action
-# Optional but recommended: claimed_by, expires_at
+# Optional but recommended: claimed_by, expires_at, record_id
 # Note: dry_run_* is self-attested metadata, not independent proof.
+# Invariants: expires_at > claimed_at; blocked needs blocker; closed needs closeout_state=closed + closeout_at
 
 memory_type: session-handoff
+record_type: claim
 source: current session and read-only validation
 confidence: pending
 freshness: valid only for this session; review before closeout

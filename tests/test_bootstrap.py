@@ -26,7 +26,9 @@ class BootstrapTests(unittest.TestCase):
             self.assertTrue((destination / "60_templates" / "session_claim.md").exists())
             self.assertTrue((destination / "60_templates" / "memory_record.md").exists())
             self.assertTrue((destination / "10_projects" / "example-app" / "50_decisions" / "INDEX.md").exists())
+            self.assertTrue((destination / ".agent-brain" / "manifest.json").exists())
             self.assertIn("session_claim.md", result["copied_record_templates"])
+            self.assertIn("manifest", result)
 
     def test_bootstrap_refuses_non_empty_destination(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

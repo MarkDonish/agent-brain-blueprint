@@ -2,12 +2,30 @@
   "name": "handoff",
   "description": "Project handoff record.",
   "required": ["memory_type", "owner", "next_action"],
-  "optional": ["title", "from", "to", "created_at", "source", "confidence", "freshness", "scope", "risk_boundary", "next_review", "status"],
+  "optional": [
+    "title",
+    "from",
+    "to",
+    "created_at",
+    "source",
+    "confidence",
+    "freshness",
+    "scope",
+    "risk_boundary",
+    "next_review",
+    "status",
+    "record_id",
+    "record_type",
+    "state"
+  ],
   "fields": {
     "memory_type": {"type": "enum", "enum": "memory_type"},
     "owner": {"type": "string"},
     "next_action": {"type": "string"},
     "from": {"type": "string"},
-    "to": {"type": "string"}
+    "to": {"type": "string"},
+    "record_id": {"type": "record_id"},
+    "record_type": {"type": "enum", "enum": "record_type"},
+    "state": {"type": "enum", "enum": "lifecycle_state"}
   }
 }

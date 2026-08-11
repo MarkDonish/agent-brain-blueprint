@@ -1,0 +1,6 @@
+{
+  "vault_format_version": 1,
+  "created_with": "0.5.0",
+  "minimum_tool_version": "0.5.0",
+  "layout_schema": "schemas/vault_layout.json"
+}

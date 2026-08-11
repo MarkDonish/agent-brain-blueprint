@@ -1,7 +1,16 @@
 # Optimization Notes
 
 Date: 2026-08-11  
-Current public target: **0.4.1** (P0 correctness / security hotfixes)
+Current public target: **0.5.0** (vault format + schema foundation)
+
+## 0.5.0 shipped (format foundation)
+
+1. Vault manifest + format checker + layout includes `.agent-brain/`.
+2. Optional stable `record_id` (ULID).
+3. Optional `record_type` / `knowledge_type` / lifecycle `state`.
+4. Claim state-machine invariants + duplicate session_id detection.
+5. Governance lifecycle soft rules + validation evidence soft rule.
+6. Instruction-boundary and vault-format docs.
 
 ## 0.4.1 shipped (P0)
 

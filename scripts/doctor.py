@@ -12,12 +12,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CHECKS = (
+    "check_vault_format.py",
     "check_vault_structure.py",
     "check_memory_governance.py",
     "check_session_claims.py",
 )
 
 REPAIR_HINTS = {
+    "check_vault_format.py": "Run scripts/write_vault_manifest.py <vault> or bootstrap a new vault",
     "check_vault_structure.py": "Create missing skeleton dirs/files or run scripts/fix_vault_structure.py --apply",
     "check_memory_governance.py": "Add required frontmatter fields from schemas/ and templates/memory_record.md",
     "check_session_claims.py": "Fix claim fields, close conflicting claims, or set expires_at / closeout_state",
@@ -69,6 +71,7 @@ def main() -> int:
     vault = args.vault
 
     extra = {
+        "check_vault_format.py": ["--require-manifest"] if args.strict else [],
         "check_memory_governance.py": ["--strict-soft"] if args.strict else [],
         "check_session_claims.py": ["--fail-on-expired"] if args.strict else [],
     }

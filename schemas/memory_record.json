@@ -11,7 +11,22 @@
     "next_review",
     "owner"
   ],
-  "optional": ["title", "created_at", "updated_at", "source_path_or_url"],
+  "optional": [
+    "title",
+    "created_at",
+    "updated_at",
+    "source_path_or_url",
+    "record_id",
+    "record_type",
+    "knowledge_type",
+    "state",
+    "valid_from",
+    "review_after",
+    "verified_at",
+    "supersedes",
+    "related_records",
+    "validation_refs"
+  ],
   "fields": {
     "memory_type": {"type": "enum", "enum": "memory_type"},
     "source": {"type": "string"},
@@ -22,6 +37,16 @@
     "next_review": {"type": "string"},
     "owner": {"type": "string"},
     "title": {"type": "string"},
-    "source_path_or_url": {"type": "string"}
+    "source_path_or_url": {"type": "string"},
+    "record_id": {"type": "record_id"},
+    "record_type": {"type": "enum", "enum": "record_type"},
+    "knowledge_type": {"type": "enum", "enum": "knowledge_type"},
+    "state": {"type": "enum", "enum": "lifecycle_state"},
+    "valid_from": {"type": "string"},
+    "review_after": {"type": "string"},
+    "verified_at": {"type": "string"},
+    "supersedes": {"type": "list", "item_type": "string"},
+    "related_records": {"type": "list", "item_type": "string"},
+    "validation_refs": {"type": "list", "item_type": "string"}
   }
 }

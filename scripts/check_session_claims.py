@@ -76,14 +76,26 @@ def claim_result(
             else:
                 paths.append(safe)
 
-    if data.get("status") == "closed" and data.get("closeout_state") != "closed":
-        issues.append(ValidationIssue("closeout_state", "closed status requires closed closeout_state"))
-
-    expires_at = parse_expires_at(data.get("expires_at"))
-    current = normalize_dt(now or datetime.now(timezone.utc))
-    expired = bool(expires_at and normalize_dt(expires_at) <= current)
     status = str(data.get("status") or "")
     closeout = str(data.get("closeout_state") or "")
+
+    # State-machine invariants
+    if status == "closed" and closeout != "closed":
+        issues.append(ValidationIssue("closeout_state", "closed status requires closed closeout_state"))
+    if closeout == "closed" and status != "closed":
+        issues.append(ValidationIssue("status", "closed closeout_state requires status=closed"))
+    if status == "blocked" and not str(data.get("blocker") or "").strip():
+        issues.append(ValidationIssue("blocker", "blocked status requires blocker"))
+    if status == "closed" and not data.get("closeout_at"):
+        issues.append(ValidationIssue("closeout_at", "closed status requires closeout_at", level="warning"))
+
+    claimed_at = parse_expires_at(data.get("claimed_at"))
+    expires_at = parse_expires_at(data.get("expires_at"))
+    if claimed_at and expires_at and normalize_dt(expires_at) <= normalize_dt(claimed_at):
+        issues.append(ValidationIssue("expires_at", "expires_at must be after claimed_at"))
+
+    current = normalize_dt(now or datetime.now(timezone.utc))
+    expired = bool(expires_at and normalize_dt(expires_at) <= current)
     active = status in {"active", "blocked"} and closeout != "closed" and not expired
     warnings: list[str] = []
     if expired and status in {"active", "blocked"} and closeout != "closed":
@@ -92,6 +104,7 @@ def claim_result(
             issues.append(ValidationIssue("expires_at", warning))
         else:
             warnings.append(warning)
+    warnings.extend(f"{item.field}: {item.message}" for item in issues if item.level == "warning")
 
     result.update(
         {
@@ -153,6 +166,11 @@ def main() -> int:
             if any(overlaps(str(a), str(b)) for a in left["paths"] for b in right["paths"]):
                 left["errors"].append(f"conflicts with {right['path']}")
                 right["errors"].append(f"conflicts with {left['path']}")
+            left_sid = str(left.get("session_id") or "")
+            right_sid = str(right.get("session_id") or "")
+            if left_sid and left_sid == right_sid:
+                left["errors"].append(f"duplicate active session_id with {right['path']}")
+                right["errors"].append(f"duplicate active session_id with {left['path']}")
 
     failures = [
         {"path": item["path"], "errors": item["errors"], "warnings": item["warnings"]}

@@ -7,6 +7,7 @@ test:
 
 doctor:
 	$(PYTHON) scripts/doctor.py templates/vault
+	$(PYTHON) scripts/check_vault_format.py templates/vault --require-manifest
 
 demo-doctor:
 	$(PYTHON) scripts/doctor.py examples/demo-vault

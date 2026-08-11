@@ -30,7 +30,9 @@
     "created_at",
     "updated_at",
     "closeout_at",
-    "blocker"
+    "blocker",
+    "record_id",
+    "record_type"
   ],
   "fields": {
     "session_id": {"type": "string"},
@@ -53,6 +55,10 @@
     "scope": {"type": "string"},
     "risk_boundary": {"type": "string"},
     "next_review": {"type": "string"},
-    "owner": {"type": "string"}
+    "owner": {"type": "string"},
+    "closeout_at": {"type": "datetime"},
+    "blocker": {"type": "string"},
+    "record_id": {"type": "record_id"},
+    "record_type": {"type": "enum", "enum": "record_type"}
   }
 }

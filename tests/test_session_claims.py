@@ -113,10 +113,15 @@ class ClaimTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             claim = root / "claim.md"
-            claim.write_text(
-                record(["10_projects/example/file.md"], expires_at="2020-01-01T00:00:00+00:00"),
-                encoding="utf-8",
+            # claimed_at before expires_at, both in the past relative to "now"
+            body = record(
+                ["10_projects/example/file.md"],
+                expires_at="2020-06-01T00:00:00+00:00",
+            ).replace(
+                "claimed_at: 2026-01-01T00:00:00+00:00",
+                "claimed_at: 2020-01-01T00:00:00+00:00",
             )
+            claim.write_text(body, encoding="utf-8")
             result = CLAIMS.claim_result(root, claim, now=datetime(2026, 1, 1, tzinfo=timezone.utc))
             self.assertEqual(result["errors"], [])
             self.assertFalse(result["active"])
@@ -252,6 +257,62 @@ class ClaimTests(unittest.TestCase):
             self.assertEqual(code, 0, payload)
             self.assertTrue(payload["allowed"])
             self.assertGreaterEqual(payload["invalid_claim_count"], 1)
+
+    def test_expires_at_must_be_after_claimed_at(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            claim = root / "claim.md"
+            claim.write_text(
+                record(
+                    ["10_projects/example/file.md"],
+                    expires_at="2020-01-01T00:00:00+00:00",
+                ).replace(
+                    "claimed_at: 2026-01-01T00:00:00+00:00",
+                    "claimed_at: 2026-06-01T00:00:00+00:00",
+                ),
+                encoding="utf-8",
+            )
+            result = CLAIMS.claim_result(root, claim)
+            self.assertTrue(any("expires_at must be after claimed_at" in e for e in result["errors"]))
+
+    def test_blocked_requires_blocker(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            claim = root / "claim.md"
+            claim.write_text(
+                record(["10_projects/example/file.md"], status="blocked"),
+                encoding="utf-8",
+            )
+            result = CLAIMS.claim_result(root, claim)
+            self.assertTrue(any("blocked status requires blocker" in e for e in result["errors"]))
+
+    def test_duplicate_active_session_id(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            claims = root / "40_handoffs" / "session_claims"
+            claims.mkdir(parents=True)
+            body = record(["10_projects/example/a.md"], session="same-session")
+            (claims / "one.md").write_text(body, encoding="utf-8")
+            (claims / "two.md").write_text(
+                record(["10_projects/example/b.md"], session="same-session"),
+                encoding="utf-8",
+            )
+            import io
+            from contextlib import redirect_stdout
+
+            buf = io.StringIO()
+            old = sys.argv
+            try:
+                sys.argv = ["check_session_claims.py", str(root)]
+                with redirect_stdout(buf):
+                    code = CLAIMS.main()
+            finally:
+                sys.argv = old
+            self.assertEqual(code, 2)
+            payload = json.loads(buf.getvalue())
+            self.assertGreaterEqual(payload["failure_count"], 1)
+            blob = json.dumps(payload)
+            self.assertIn("duplicate active session_id", blob)
 
 
 if __name__ == "__main__":

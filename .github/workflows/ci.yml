@@ -19,6 +19,7 @@ jobs:
 
       - name: Template vault checks
         run: |
+          python scripts/check_vault_format.py templates/vault --require-manifest
           python scripts/check_vault_structure.py templates/vault
           python scripts/check_memory_governance.py templates/vault
           python scripts/check_session_claims.py templates/vault

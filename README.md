@@ -118,8 +118,10 @@ Details: [docs/session-claims-and-closeout.md](docs/session-claims-and-closeout.
 
 | Script | Purpose |
 | --- | --- |
-| `scripts/bootstrap.py` | Create a new local vault (`--project` supported) |
-| `scripts/doctor.py` | Structure + governance + claims with repair hints |
+| `scripts/bootstrap.py` | Create a new local vault (`--project` supported; writes format manifest) |
+| `scripts/doctor.py` | Format + structure + governance + claims with repair hints |
+| `scripts/check_vault_format.py` | Vault format version / manifest compatibility |
+| `scripts/write_vault_manifest.py` | Migrate pre-0.5 vaults by writing `.agent-brain/manifest.json` |
 | `scripts/check_vault_structure.py` | Skeleton existence |
 | `scripts/check_memory_governance.py` | Strict decisions + soft validation/handoff/claims |
 | `scripts/check_session_claims.py` | Claim shape, expiry, path conflicts |
@@ -133,9 +135,9 @@ Field contracts: `schemas/*.json` (zero third-party deps). Layout SSoT: `schemas
 
 ```text
 AGENTS.md                         shared operating rules for agent hosts
-docs/                             architecture, privacy, walkthrough, claims
-schemas/                          JSON field contracts
-templates/vault/                  bootstrap source
+docs/                             architecture, privacy, walkthrough, vault format
+schemas/                          JSON field contracts + vault_layout.json
+templates/vault/                  bootstrap source (includes .agent-brain/manifest.json)
 templates/*.md                    record templates aligned to schemas
 scripts/                          dependency-free validation tools
 examples/demo-vault/              fictional multi-agent story (run doctor on it)

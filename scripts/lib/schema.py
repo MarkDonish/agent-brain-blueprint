@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from .frontmatter import FrontmatterError
+from .record_id import is_valid_record_id
 
 
 SCHEMAS_DIR = Path(__file__).resolve().parents[2] / "schemas"
@@ -97,6 +98,14 @@ def validate_against_schema(
             for index, item in enumerate(value):
                 if item_type == "path" and not _is_safe_rel_path(str(item)):
                     issues.append(ValidationIssue(field, f"unsafe path at index {index}: {item}"))
+        elif field_type == "record_id":
+            if value not in (None, "") and not is_valid_record_id(str(value)):
+                issues.append(
+                    ValidationIssue(
+                        field,
+                        "invalid record_id (expected prefix_ULID, e.g. mem_01ARZ3NDEKTSV4RRFFQ69G5FAV)",
+                    )
+                )
 
     if require_optional:
         for field in schema.get("optional", []):
