@@ -1,0 +1,17 @@
+.DS_Store
+.env
+*.log
+*.sqlite
+*.sqlite3
+*.db
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+data/
+indexes/
+cache/
+logs/
+private/
+**/session_claims/*.md
+!**/session_claims/.gitkeep
