@@ -1,0 +1,11 @@
+# Lines matching these substrings are ignored for risk patterns.
+# Hard secrets are still reported.
+# demo / docs placeholders
+example-app
+demo-user
+demo-agent
+/path/to/
+your-account
+localhost
+127.0.0.1
+0.0.0.0

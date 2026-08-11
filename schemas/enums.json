@@ -1,0 +1,11 @@
+{
+  "status": ["active", "blocked", "closed"],
+  "closeout_state": ["open", "blocked", "closed"],
+  "dry_run_status": ["pending", "not_run", "pass", "passed", "fail", "failed", "skipped", "blocked"],
+  "confidence": ["verified", "inferred", "pending", "information-missing"],
+  "freshness": ["current", "volatile", "expired", "review-required"],
+  "scope": ["user", "project", "agent", "global", "current-session"],
+  "risk_boundary": ["normal", "agent-configuration", "external-api", "production", "sensitive-data"],
+  "memory_type": ["fact", "decision", "evidence", "workflow", "lesson", "session-handoff", "task", "handoff", "validation"],
+  "validation_status": ["pass", "fail", "partial", "pending"]
+}

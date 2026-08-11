@@ -3,29 +3,48 @@ from __future__ import annotations
 import importlib.util
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 
 
-SCRIPT = Path(__file__).parents[1] / "scripts" / "check_session_claims.py"
+ROOT = Path(__file__).parents[1]
+SCRIPT = ROOT / "scripts" / "check_session_claims.py"
+GATE = ROOT / "scripts" / "check_claim_gate.py"
 SPEC = importlib.util.spec_from_file_location("claims", SCRIPT)
 assert SPEC and SPEC.loader
 CLAIMS = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(CLAIMS)
 
+# ensure scripts path works for gate import test via subprocess-like API
+import sys
 
-def record(paths: list[str], session: str = "one") -> str:
+sys.path.insert(0, str(ROOT / "scripts"))
+import check_claim_gate as GATE_MOD  # noqa: E402
+
+
+def record(
+    paths: list[str],
+    *,
+    session: str = "one",
+    status: str = "active",
+    closeout: str = "open",
+    expires_at: str | None = "2099-01-01T00:00:00+00:00",
+    claimed_by: str = "demo-agent",
+) -> str:
     lines = "\n".join(f"  - {path}" for path in paths)
+    expires = f"expires_at: {expires_at}\n" if expires_at is not None else ""
     return f"""---
 session_id: {session}
 task: Test claim
 claimed_at: 2026-01-01T00:00:00+00:00
-status: active
+{expires}claimed_by: {claimed_by}
+status: {status}
 planned_paths:
 {lines}
 dry_run_status: pending
 dry_run_command: test
 dry_run_evidence: self-attested test data
-closeout_state: open
+closeout_state: {closeout}
 closeout_summary: Not closed
 next_action: Continue
 ---
@@ -52,6 +71,7 @@ class ClaimTests(unittest.TestCase):
             claim.write_text(record(["10_projects/example/file.md"]), encoding="utf-8")
             result = CLAIMS.claim_result(root, claim)
             self.assertEqual(result["errors"], [])
+            self.assertTrue(result["active"])
 
     def test_rejects_absolute_planned_path(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -65,10 +85,45 @@ class ClaimTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             claim = root / "claim.md"
-            text = record(["10_projects/example/file.md"]).replace("status: active", "status: closed")
-            claim.write_text(text, encoding="utf-8")
+            claim.write_text(record(["10_projects/example/file.md"], status="closed", closeout="open"), encoding="utf-8")
             result = CLAIMS.claim_result(root, claim)
-            self.assertIn("closed status requires closed closeout_state", result["errors"])
+            self.assertTrue(any("closed status requires closed closeout_state" in error for error in result["errors"]))
+
+    def test_expired_claim_not_active(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            claim = root / "claim.md"
+            claim.write_text(
+                record(["10_projects/example/file.md"], expires_at="2020-01-01T00:00:00+00:00"),
+                encoding="utf-8",
+            )
+            result = CLAIMS.claim_result(root, claim, now=datetime(2026, 1, 1, tzinfo=timezone.utc))
+            self.assertEqual(result["errors"], [])
+            self.assertFalse(result["active"])
+            self.assertTrue(result["expired"])
+            self.assertTrue(result["warnings"])
+
+    def test_gate_detects_conflict(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            claims = root / "40_handoffs" / "session_claims"
+            claims.mkdir(parents=True)
+            (claims / "a.md").write_text(record(["10_projects/example/file.md"], session="a"), encoding="utf-8")
+            # emulate argv
+            import io
+            from contextlib import redirect_stdout
+
+            buf = io.StringIO()
+            argv = ["check_claim_gate.py", str(root), "--path", "10_projects/example/file.md"]
+            old = sys.argv
+            try:
+                sys.argv = argv
+                with redirect_stdout(buf):
+                    code = GATE_MOD.main()
+            finally:
+                sys.argv = old
+            self.assertEqual(code, 2)
+            self.assertIn("conflict_count", buf.getvalue())
 
 
 if __name__ == "__main__":

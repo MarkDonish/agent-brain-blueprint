@@ -1,16 +1,20 @@
 ---
-memory_type: fact / decision / evidence / workflow / lesson
+# Record type: durable memory / decision
+# Checked by: scripts/check_memory_governance.py (strict for decisions)
+# Required: memory_type, source, confidence, freshness, scope, risk_boundary, next_review, owner
+
+memory_type: decision
 title: A clear, durable statement
-created_at: YYYY-MM-DD
-updated_at: YYYY-MM-DD
+created_at: 2026-01-01
+updated_at: 2026-01-01
 source: original document / command output / commit / primary source / user confirmation
 source_path_or_url: /path/to/source-or-url
-confidence: verified / inferred / pending / information-missing
-freshness: current / volatile / expired / review-required
-scope: user / project / agent / global
-risk_boundary: normal / agent-configuration / external-api / production / sensitive-data
-next_review: YYYY-MM-DD or a concrete trigger
-owner: demo-user / named agent
+confidence: verified
+freshness: current
+scope: project
+risk_boundary: normal
+next_review: 2026-02-01
+owner: demo-user
 ---
 
 # Title

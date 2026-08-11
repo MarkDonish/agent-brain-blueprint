@@ -10,6 +10,11 @@ SCRIPT = Path(__file__).parents[1] / "scripts" / "check_memory_governance.py"
 SPEC = importlib.util.spec_from_file_location("governance", SCRIPT)
 assert SPEC and SPEC.loader
 GOVERNANCE = importlib.util.module_from_spec(SPEC)
+import sys
+
+sys.modules["governance"] = GOVERNANCE
+# allow scripts/lib imports
+sys.path.insert(0, str(Path(__file__).parents[1] / "scripts"))
 SPEC.loader.exec_module(GOVERNANCE)
 
 
@@ -25,7 +30,8 @@ class GovernanceTests(unittest.TestCase):
             project_decisions.mkdir(parents=True)
             (project_decisions / "README.md").write_text("# Project guide\n", encoding="utf-8")
             (project_decisions / "INDEX.md").write_text("# Project index\n", encoding="utf-8")
-            self.assertEqual(list(GOVERNANCE.governed_files(root)), [])
+            targets = list(GOVERNANCE.iter_targets(root, include_soft=True))
+            self.assertEqual(targets, [])
 
     def test_decision_record_is_governed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -34,7 +40,34 @@ class GovernanceTests(unittest.TestCase):
             decisions.mkdir()
             record = decisions / "decision.md"
             record.write_text("# Missing frontmatter\n", encoding="utf-8")
-            self.assertEqual(list(GOVERNANCE.governed_files(root)), [record])
+            targets = list(GOVERNANCE.iter_targets(root, include_soft=False))
+            self.assertEqual([path for path, _, _ in targets], [record])
+            result = GOVERNANCE.check_file(root, record, "memory_record", "strict")
+            self.assertTrue(result["errors"])
+
+    def test_complete_decision_passes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            decisions = root / "30_global_decisions"
+            decisions.mkdir()
+            record = decisions / "decision.md"
+            record.write_text(
+                """---
+memory_type: decision
+source: test
+confidence: verified
+freshness: current
+scope: project
+risk_boundary: normal
+next_review: 2026-02-01
+owner: demo-user
+---
+# ok
+""",
+                encoding="utf-8",
+            )
+            result = GOVERNANCE.check_file(root, record, "memory_record", "strict")
+            self.assertEqual(result["errors"], [])
 
 
 if __name__ == "__main__":

@@ -28,130 +28,85 @@ state, handoffs, durable decisions, validation records, and retrieval hints.
 ```bash
 git clone https://github.com/MarkDonish/agent-brain-blueprint.git
 cd agent-brain-blueprint
-python3 scripts/bootstrap.py --destination ../my-agent-brain
+python3 scripts/bootstrap.py --destination ../my-agent-brain --project example-app
 python3 scripts/doctor.py ../my-agent-brain
+python3 scripts/check_claim_gate.py ../my-agent-brain \
+  --path 10_projects/example-app/10_current_work/INDEX.md
 python3 scripts/check_privacy_scan.py .
 ```
 
-The bootstrap command creates a new local vault from the templates. It copies
-record templates into `60_templates/`, installs a vault `.gitignore`, and never
-writes into a non-empty destination.
+Bootstrap creates a new local vault from the templates, copies record templates
+into `60_templates/`, installs a vault `.gitignore`, and refuses non-empty
+destinations.
 
 ## Repository layout
 
 ```text
 AGENTS.md                         shared operating rules for agent hosts
-docs/                             architecture, privacy, and closeout guidance
-templates/vault/                  the bootstrap source
-templates/*.md                    record templates for human and agent use
+docs/                             architecture, privacy, claims, optimization notes
+schemas/                          JSON field contracts (single source of truth)
+templates/vault/                  bootstrap source
+templates/*.md                    record templates aligned to schemas
 scripts/                          dependency-free validation tools
-tests/                            focused regression tests
+scripts/lib/                      shared frontmatter + schema helpers
+tests/                            regression tests
 examples/demo-vault/              fictional, safe reference note
-```
-
-The generated vault uses these top-level areas:
-
-```text
-00_entrypoint/                    a short session-start card
-10_projects/                      project workspaces
-20_agent_catalog/                 host-specific pointers, never runtime copies
-30_global_decisions/              durable cross-project decisions
-40_handoffs/                      narrow cross-agent handoffs and claims
-50_retrieval/                     retrieval protocol and optional adapters
-60_templates/                     local copies of the templates
-70_inbox/                         unprocessed source pointers
-80_sensitive_isolation/           hard boundary for material that must not be published
-90_archive/                       historical records that are no longer current
-```
-
-Each sample project also includes:
-
-```text
-10_current_work/
-20_handoffs/
-30_docs/
-40_validation/
-50_decisions/
-60_summaries/
-90_raw_sources/
 ```
 
 ## Session claims and closeout
 
 Before changing shared memory, create a session claim from
-`templates/session_claim.md`. It lists the session, narrow planned paths,
-source material, dry-run evidence, and closeout state.
+`templates/session_claim.md`. Recommended fields now include:
+
+- `claimed_by` — which agent/host owns the claim
+- `expires_at` — when the claim stops being treated as active
 
 ```bash
-python3 scripts/check_session_claims.py ./my-agent-brain \
-  --claims-dir 40_handoffs/session_claims
+python3 scripts/check_session_claims.py ./my-agent-brain
+python3 scripts/check_claim_gate.py ./my-agent-brain \
+  --path 10_projects/example-app/10_current_work/INDEX.md
 ```
 
-The checker is read-only. It validates fields, safe vault-relative paths,
-ancestor/descendant collisions, and same-target symlink aliases. It does not
-lock files, run commands, commit Git, restart services, or treat self-reported
-dry-run evidence as independently verified proof. See
-[the closeout protocol](docs/session-claims-and-closeout.md) for the trusted,
-non-concurrent local-filesystem boundary.
+Important limits:
 
-## Search and retrieval
+- claim checks are read-only and local-filesystem only
+- dry-run fields are self-attested metadata
+- this is **not** a distributed lock
 
-Use any local keyword, FTS, or vector system you prefer. The invariant is more
-important than the engine:
+See [session claims and closeout](docs/session-claims-and-closeout.md).
 
-1. Search returns candidates only.
-2. Filter candidates by project, status, scope, and freshness where possible.
-3. Reopen the current Markdown source before using its claim as fact.
-4. Treat runtime, production, vendor, policy, and account facts as stale until
-   revalidated from the real system or primary source.
+## Tooling
 
-This template intentionally has no bundled vector database or model. Derived
-indexes should be reproducible from the Markdown vault and ignored by Git.
+| Script | Purpose |
+| --- | --- |
+| `scripts/bootstrap.py` | Create a new local vault (`--project` supported) |
+| `scripts/doctor.py` | Structure + governance + claims with repair hints |
+| `scripts/check_vault_structure.py` | Skeleton existence |
+| `scripts/check_memory_governance.py` | Strict decisions + soft validation/handoff/claims |
+| `scripts/check_session_claims.py` | Claim shape, expiry, path conflicts |
+| `scripts/check_claim_gate.py` | Pre-write conflict check for planned paths |
+| `scripts/check_privacy_scan.py` | Pre-publish secret/path scan |
+| `scripts/fix_vault_structure.py` | Optional dry-run/`--apply` skeleton repair |
+
+Field contracts live in `schemas/*.json`.
 
 ## Privacy boundary
 
-Do not add any of these to the vault or this public repository:
-
-- API keys, tokens, cookies, passwords, OAuth files, or `.env` files
-- personal profiles, raw conversations, browser data, private messages, or email
-- customer data, invoices, account identifiers, or production credentials
-- SQLite databases, search indexes, logs, caches, binary artifacts, or model files
-- absolute private paths, private project names, IP addresses, or hostnames
-
-Use fictional names such as `example-app`, `demo-user`, and `/path/to/vault` in
-documentation and tests. Review every file before publishing a derivative.
+Do not add credentials, private chats, customer data, databases, logs, or
+absolute private paths to the public repository or generated vault examples.
 
 ```bash
 python3 scripts/check_privacy_scan.py .
 python3 scripts/check_privacy_scan.py . --strict
 ```
 
-## Tooling
-
-| Script | Purpose |
-| --- | --- |
-| `scripts/bootstrap.py` | Create a new local vault |
-| `scripts/doctor.py` | Run structure + governance + claim checks |
-| `scripts/check_vault_structure.py` | Verify the expected skeleton |
-| `scripts/check_memory_governance.py` | Require provenance fields on durable records |
-| `scripts/check_session_claims.py` | Validate claim shape and conflicts |
-| `scripts/check_privacy_scan.py` | Pre-publish secret/path leak scan |
-
-All scripts are dependency-free Python 3.
+Optional allowlist file: `.privacy-allowlist`.
 
 ## Verification
 
 ```bash
 make verify
-# or:
-python3 -m unittest discover -s tests -v
-python3 scripts/doctor.py templates/vault
-python3 scripts/check_privacy_scan.py .
-python3 scripts/bootstrap.py --destination /tmp/agent-brain-blueprint-smoke-vault
 ```
-
-`doctor.py` is read-only. The privacy scanner fails the build on hard secret
-patterns and can optionally fail on home paths and emails with `--strict`.
 
 ## License
 

@@ -12,6 +12,17 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE_ROOT = REPO_ROOT / "templates" / "vault"
 RECORD_TEMPLATES = REPO_ROOT / "templates"
 
+PROJECT_FILES = {
+    "PROJECT_OVERVIEW.md": "# {project}\n\n## Purpose\n\nReplace this fictional overview with source-backed project context.\n\n## 30-second entrypoint\n\n1. Read `10_current_work/INDEX.md`\n2. Read newest handoff and validation records\n3. Revalidate live facts before acting\n",
+    "10_current_work/INDEX.md": "# Current Work\n\nNo active task.\n",
+    "20_handoffs/INDEX.md": "# Handoffs\n\nStore project handoffs here.\n",
+    "30_docs/INDEX.md": "# Docs\n\nStore non-sensitive design notes here.\n",
+    "40_validation/INDEX.md": "# Validation\n\nStore evidence before closeout here.\n",
+    "50_decisions/INDEX.md": "# Decisions\n\nUse the memory record template for durable decisions.\n",
+    "60_summaries/INDEX.md": "# Summaries\n\nKeep session summaries short and source-backed.\n",
+    "90_raw_sources/INDEX.md": "# Raw Sources\n\nStore source pointers only.\n",
+}
+
 
 def _copy_record_templates(destination: Path) -> list[str]:
     target = destination / "60_templates"
@@ -31,7 +42,39 @@ def _copy_record_templates(destination: Path) -> list[str]:
     return copied
 
 
-def bootstrap(destination: Path) -> dict[str, object]:
+def _ensure_project(destination: Path, project: str) -> None:
+    root = destination / "10_projects" / project
+    for rel, content in PROJECT_FILES.items():
+        path = root / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if not path.exists():
+            path.write_text(content.format(project=project), encoding="utf-8")
+    # Remove default example-app if user chose another project name and example exists unused
+    example = destination / "10_projects" / "example-app"
+    if project != "example-app" and example.exists():
+        # keep example-app as additional sample; do not delete user content
+        pass
+
+
+def _refresh_session_card(destination: Path, project: str) -> None:
+    card = destination / "00_entrypoint" / "SESSION_START_CARD.md"
+    card.parent.mkdir(parents=True, exist_ok=True)
+    card.write_text(
+        f"""# Session Start Card
+
+This vault was bootstrapped for local multi-agent memory.
+
+1. Read this card and `10_projects/{project}/PROJECT_OVERVIEW.md`.
+2. Read current work, handoff, validation, decisions, and source indexes.
+3. Create a session claim before editing shared records in multi-agent work.
+4. Run `python3 scripts/check_claim_gate.py <vault> --path <relative-path>` before contested writes.
+5. Never store secrets, raw conversations, databases, logs, or customer data here.
+""",
+        encoding="utf-8",
+    )
+
+
+def bootstrap(destination: Path, project: str = "example-app") -> dict[str, object]:
     destination = destination.expanduser().resolve()
     if destination.exists():
         if any(destination.iterdir()):
@@ -42,6 +85,8 @@ def bootstrap(destination: Path) -> dict[str, object]:
     shutil.copytree(TEMPLATE_ROOT, destination, dirs_exist_ok=destination.exists())
     shutil.copy2(REPO_ROOT / "AGENTS.md", destination / "AGENTS.md")
     copied_templates = _copy_record_templates(destination)
+    _ensure_project(destination, project)
+    _refresh_session_card(destination, project)
 
     gitignore = destination / ".gitignore"
     if not gitignore.exists():
@@ -49,6 +94,7 @@ def bootstrap(destination: Path) -> dict[str, object]:
 
     return {
         "destination": str(destination),
+        "project": project,
         "copied_record_templates": copied_templates,
         "read_only": False,
     }
@@ -57,12 +103,14 @@ def bootstrap(destination: Path) -> dict[str, object]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--destination", required=True, type=Path)
+    parser.add_argument("--project", default="example-app", help="project folder name under 10_projects/")
     args = parser.parse_args()
     try:
-        result = bootstrap(args.destination)
+        result = bootstrap(args.destination, project=args.project)
     except FileExistsError as exc:
         parser.error(str(exc))
     print(f"created vault: {result['destination']}")
+    print(f"project: {result['project']}")
     print(f"copied templates: {', '.join(result['copied_record_templates'])}")
     return 0
 

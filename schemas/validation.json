@@ -1,0 +1,13 @@
+{
+  "name": "validation",
+  "description": "Evidence before declaring work complete.",
+  "required": ["memory_type", "status", "owner"],
+  "optional": ["title", "created_at", "source", "confidence", "freshness", "scope", "risk_boundary", "next_review", "evidence", "commands"],
+  "fields": {
+    "memory_type": {"type": "enum", "enum": "memory_type"},
+    "status": {"type": "enum", "enum": "validation_status"},
+    "owner": {"type": "string"},
+    "evidence": {"type": "string"},
+    "commands": {"type": "string"}
+  }
+}

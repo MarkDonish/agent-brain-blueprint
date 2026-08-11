@@ -1,8 +1,19 @@
-# Task: short objective
+---
+# Record type: task
+# Checked by: optional local review; not strict-governed by default
+# Recommended fields: memory_type, status, owner, created_at
 
-- Status: open / blocked / done
-- Created: YYYY-MM-DD
-- Owner: demo-user / named agent
+memory_type: task
+title: short objective
+created_at: 2026-01-01
+status: open
+owner: demo-user
+scope: project
+risk_boundary: normal
+next_review: when status changes
+---
+
+# Task: short objective
 
 ## Goal
 

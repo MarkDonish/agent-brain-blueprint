@@ -29,6 +29,7 @@ jobs:
 
       - name: Bootstrap smoke test
         run: |
-          python scripts/bootstrap.py --destination "$RUNNER_TEMP/demo-vault"
+          python scripts/bootstrap.py --destination "$RUNNER_TEMP/demo-vault" --project example-app
           python scripts/doctor.py "$RUNNER_TEMP/demo-vault"
+          python scripts/check_claim_gate.py "$RUNNER_TEMP/demo-vault" --path 10_projects/example-app/10_current_work/INDEX.md
           python scripts/check_privacy_scan.py "$RUNNER_TEMP/demo-vault"

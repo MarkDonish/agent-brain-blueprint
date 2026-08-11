@@ -1,0 +1,27 @@
+{
+  "name": "memory_record",
+  "description": "Provenance-bearing durable fact or decision.",
+  "required": [
+    "memory_type",
+    "source",
+    "confidence",
+    "freshness",
+    "scope",
+    "risk_boundary",
+    "next_review",
+    "owner"
+  ],
+  "optional": ["title", "created_at", "updated_at", "source_path_or_url"],
+  "fields": {
+    "memory_type": {"type": "enum", "enum": "memory_type"},
+    "source": {"type": "string"},
+    "confidence": {"type": "enum", "enum": "confidence"},
+    "freshness": {"type": "enum", "enum": "freshness"},
+    "scope": {"type": "enum", "enum": "scope"},
+    "risk_boundary": {"type": "enum", "enum": "risk_boundary"},
+    "next_review": {"type": "string"},
+    "owner": {"type": "string"},
+    "title": {"type": "string"},
+    "source_path_or_url": {"type": "string"}
+  }
+}

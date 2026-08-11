@@ -5,13 +5,16 @@
 Markdown is the source of truth. It is readable by people, reviewable in Git,
 and usable without a particular agent product or database.
 
+## Schema layer
+
+Field contracts live in `schemas/*.json` and are loaded by `scripts/lib/schema.py`.
+Frontmatter parsing lives in `scripts/lib/frontmatter.py`. Checkers must not
+redefine required fields in isolation.
+
 ## Project layer
 
 Each project separates its overview, active work, handoffs, docs, validation,
-decisions, summaries, and source references. This avoids treating a compressed
-conversation recap as an authoritative fact.
-
-Recommended project layout:
+decisions, summaries, and source references.
 
 ```text
 10_projects/<project>/
@@ -28,38 +31,34 @@ Recommended project layout:
 ## Vault top-level layer
 
 ```text
-00_entrypoint/            short session-start card
-10_projects/              project workspaces
-20_agent_catalog/         host pointers, never runtime copies
-30_global_decisions/      durable cross-project decisions
-40_handoffs/              vault-level handoffs and session claims
-50_retrieval/             retrieval protocol notes
-60_templates/             local record templates
-70_inbox/                 unprocessed source pointers
-80_sensitive_isolation/   hard boundary; keep out of Git
-90_archive/               superseded records
+00_entrypoint/
+10_projects/
+20_agent_catalog/
+30_global_decisions/
+40_handoffs/
+50_retrieval/
+60_templates/
+70_inbox/
+80_sensitive_isolation/
+90_archive/
 ```
 
 ## Retrieval layer
 
-Keyword search, SQLite FTS, and vector retrieval may all be useful, but they
-are derivative systems. A retrieval hit is a pointer, never authority to act.
-Indexes should be rebuildable from the vault and excluded from Git.
+Search systems may nominate candidates. A hit is never authority to act. Indexes
+should be rebuildable and excluded from Git.
 
 ## Governance layer
 
-Durable records declare their type, source, confidence, freshness, scope, risk
-boundary, review trigger, and owner. The governance checker makes omissions
-visible without deciding whether the substance is true.
+Durable decision records require provenance fields from `schemas/memory_record.json`.
+Validation/handoff/session claim paths can be checked softly.
 
 ## Concurrency layer
 
-Session claims are normal Markdown records. They establish a narrow intention
-to change a set of vault-relative paths. The closeout checker is read-only and
-detects obvious active-claim overlap; it is not a distributed lock or a defense
-against a hostile local account.
+Session claims plus optional `check_claim_gate.py` reduce accidental overlap.
+They are not distributed locks. Expired claims stop being active.
 
 ## Safety layer
 
-`doctor.py` combines structure, governance, and claim checks. The privacy scanner
-is a pre-publish net for the public blueprint checkout, not a complete DLP system.
+`doctor.py` combines structure, governance, and claim checks with human-readable
+repair hints. `check_privacy_scan.py` is a pre-publish net for the public checkout.
