@@ -28,6 +28,9 @@ jobs:
           python -m agent_brain doctor "$RUNNER_TEMP/cli-vault"
           python -m agent_brain claim acquire "$RUNNER_TEMP/cli-vault" --session-id ci --task "ci" --path 10_projects/cli-app/10_current_work/INDEX.md --filename ci-claim.md
           python -m agent_brain claim gate "$RUNNER_TEMP/cli-vault" --claim 40_handoffs/session_claims/ci-claim.md
+          python -m agent_brain retrieve rebuild "$RUNNER_TEMP/cli-vault"
+          python -m agent_brain retrieve search "$RUNNER_TEMP/cli-vault" "current work" --project cli-app --limit 5
+          python -m agent_brain context build "$RUNNER_TEMP/cli-vault" --project cli-app --task "ci" --max-tokens 2000 --json --meta-only
 
       - name: Template vault checks
         run: |

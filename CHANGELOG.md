@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.0 - 2026-08-11
+
+Retrieval + context builder (still Markdown-canonical).
+
+- Add derived SQLite FTS5 index under `50_retrieval/indexes/fts.sqlite` (`retrieve rebuild` / `retrieve search`).
+- Hard filters (project, record_type, state, freshness, scope, risk) then FTS + bm25 ranking.
+- Default exclude expired/superseded/archived from search hits.
+- Add `context build --project --task --max-tokens` packing overview → work → decisions → validation → handoff → FTS → summaries.
+- CLI version 0.7.0; scripts wrappers `rebuild_index.py`, `retrieve.py`, `context_build.py`.
+- Docs: `docs/retrieval.md`.
+
 ## 0.6.0 - 2026-08-11
 
 Unified CLI productization (scripts remain compatibility wrappers).

@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 # Tool release that introduced vault_format_version 1.
-TOOL_VERSION = "0.6.0"
+TOOL_VERSION = "0.7.0"
 VAULT_FORMAT_VERSION = 1
 SUPPORTED_VAULT_FORMAT_VERSIONS = frozenset({1})
 

@@ -1,4 +1,10 @@
-# Retrieval Protocol
+# Retrieval (derived)
 
-Search systems may nominate candidates. Open the current Markdown source and
-revalidate runtime facts before using a result as a decision input.
+Indexes under `indexes/` are **rebuildable** and must stay out of Git.
+
+```bash
+python -m agent_brain retrieve rebuild ../path-to-this-vault
+python -m agent_brain retrieve search ../path-to-this-vault "query" --project example-app
+```
+
+Markdown remains canonical. Search hits only nominate candidates.

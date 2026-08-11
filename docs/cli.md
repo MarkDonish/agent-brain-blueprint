@@ -1,4 +1,4 @@
-# agent-brain CLI (0.6.0)
+# agent-brain CLI (0.7.0)
 
 Markdown remains the **canonical** vault data. The CLI is the **tooling runtime**.
 
@@ -44,11 +44,13 @@ python3 scripts/doctor.py ./my-vault
 | `agent-brain claim close --claim PATH` | Mark claim closed |
 | `agent-brain record validate [vault]` | Governance check |
 | `agent-brain record id [--prefix mem]` | Generate ULID `record_id` |
+| `agent-brain retrieve rebuild [vault]` | Rebuild derived FTS index |
+| `agent-brain retrieve search [vault] QUERY` | FTS + filters (candidates only) |
+| `agent-brain context build [vault] --project P` | Minimal context pack |
 
-Planned later (not implemented):
+Planned later:
 
-- `context` / `retrieve` → 0.7.0
-- deeper `memory` promotion workflows → 0.7.0+
+- deeper `memory` promotion / supersede workflows → 0.8.0+
 
 ## Claim workflow
 

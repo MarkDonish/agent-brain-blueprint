@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""agent-brain unified CLI (0.6.0).
+"""agent-brain unified CLI (0.7.0).
 
 Vault remains the data plane. This CLI is the runtime/tooling surface.
 Legacy `python scripts/*.py` entrypoints stay as compatibility wrappers.
+Retrieval indexes are derived/rebuildable and never canonical.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -15,7 +17,10 @@ from agent_brain import __version__
 from agent_brain.cli.claim_ops import acquire_claim, close_claim
 from agent_brain.cli.project_ops import add_project, list_projects
 from agent_brain.cli.runner import run_script
+from agent_brain.context.builder import build_context
 from agent_brain.paths import ensure_scripts_on_path, repo_root
+from agent_brain.retrieval.index import rebuild_index
+from agent_brain.retrieval.query import search
 
 
 def _cmd_init(args: argparse.Namespace) -> int:
@@ -173,6 +178,62 @@ def _cmd_deferred(name: str, version: str) -> int:
     return 2
 
 
+def _cmd_retrieve_rebuild(args: argparse.Namespace) -> int:
+    try:
+        report = rebuild_index(Path(args.vault))
+    except Exception as exc:  # noqa: BLE001
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    print(json.dumps(report, indent=2))
+    return 0
+
+
+def _cmd_retrieve_search(args: argparse.Namespace) -> int:
+    result = search(
+        Path(args.vault),
+        args.query,
+        project=args.project,
+        record_type=args.record_type,
+        state=args.state,
+        freshness=args.freshness,
+        scope=args.scope,
+        risk_boundary=args.risk_boundary,
+        include_inactive=args.include_inactive,
+        limit=args.limit,
+    )
+    print(json.dumps(result, indent=2))
+    return 0 if result.get("ok") else 2
+
+
+def _cmd_context_build(args: argparse.Namespace) -> int:
+    try:
+        pack = build_context(
+            Path(args.vault),
+            project=args.project,
+            task=args.task or "",
+            max_tokens=args.max_tokens,
+            rebuild_if_missing=not args.no_rebuild,
+            fts_limit=args.fts_limit,
+        )
+    except Exception as exc:  # noqa: BLE001
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    if args.json:
+        # omit huge document duplication if meta-only requested
+        out = dict(pack)
+        if args.meta_only:
+            out.pop("document", None)
+        print(json.dumps(out, indent=2))
+    else:
+        print(pack["document"])
+        if args.write:
+            path = Path(args.write)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(pack["document"], encoding="utf-8")
+            print(f"\n# wrote {path}", file=sys.stderr)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="agent-brain",
@@ -279,14 +340,46 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--prefix", default="mem")
     p.set_defaults(func=_cmd_record_id)
 
-    # deferred 0.7+
-    for name, ver in (
-        ("context", "0.7.0"),
-        ("retrieve", "0.7.0"),
-        ("memory", "0.7.0"),
-    ):
-        p = sub.add_parser(name, help=f"planned for {ver}")
-        p.set_defaults(func=lambda args, n=name, v=ver: _cmd_deferred(n, v))
+    # retrieve (derived FTS — not truth)
+    ret = sub.add_parser(
+        "retrieve",
+        help="derived SQLite FTS5 retrieval (candidates only; reopen Markdown)",
+    )
+    ret_sub = ret.add_subparsers(dest="retrieve_command", required=True)
+    p = ret_sub.add_parser("rebuild", help="rebuild index under 50_retrieval/indexes/")
+    p.add_argument("vault", nargs="?", type=Path, default=Path("."))
+    p.set_defaults(func=_cmd_retrieve_rebuild)
+    p = ret_sub.add_parser("search", help="search index with hard filters + FTS")
+    p.add_argument("vault", nargs="?", type=Path, default=Path("."))
+    p.add_argument("query", help="free-text query")
+    p.add_argument("--project", default=None)
+    p.add_argument("--record-type", default=None)
+    p.add_argument("--state", default=None)
+    p.add_argument("--freshness", default=None)
+    p.add_argument("--scope", default=None)
+    p.add_argument("--risk-boundary", default=None)
+    p.add_argument("--include-inactive", action="store_true")
+    p.add_argument("--limit", type=int, default=20)
+    p.set_defaults(func=_cmd_retrieve_search)
+
+    # context builder
+    ctx = sub.add_parser("context", help="build minimal sufficient project context pack")
+    ctx_sub = ctx.add_subparsers(dest="context_command", required=True)
+    p = ctx_sub.add_parser("build", help="pack overview/work/decisions/validation/handoff + FTS")
+    p.add_argument("vault", nargs="?", type=Path, default=Path("."))
+    p.add_argument("--project", required=True)
+    p.add_argument("--task", default="", help="task string used for FTS candidates")
+    p.add_argument("--max-tokens", type=int, default=16000)
+    p.add_argument("--fts-limit", type=int, default=5)
+    p.add_argument("--no-rebuild", action="store_true", help="do not auto-rebuild missing index")
+    p.add_argument("--json", action="store_true", help="emit JSON instead of markdown pack")
+    p.add_argument("--meta-only", action="store_true", help="with --json, omit document body")
+    p.add_argument("--write", type=Path, default=None, help="also write markdown pack to path")
+    p.set_defaults(func=_cmd_context_build)
+
+    # deferred deeper memory promotion
+    p = sub.add_parser("memory", help="planned for 0.8.0 (promotion / supersede workflows)")
+    p.set_defaults(func=lambda args: _cmd_deferred("memory", "0.8.0"))
 
     # meta
     p = sub.add_parser("version", help="print version")

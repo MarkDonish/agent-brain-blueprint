@@ -78,6 +78,9 @@ python -m agent_brain claim acquire ../my-agent-brain \
 python -m agent_brain claim gate ../my-agent-brain \
   --claim 40_handoffs/session_claims/<claim-file>.md
 python -m agent_brain privacy .
+python -m agent_brain retrieve rebuild ../my-agent-brain
+python -m agent_brain retrieve search ../my-agent-brain "session claim" --project example-app
+python -m agent_brain context build ../my-agent-brain --project example-app --task "next handoff" --max-tokens 8000
 
 # Legacy scripts still work
 python3 scripts/bootstrap.py --destination ../my-agent-brain-alt --project example-app
@@ -140,6 +143,8 @@ Details: [docs/session-claims-and-closeout.md](docs/session-claims-and-closeout.
 | `agent-brain privacy` | Pre-publish secret/path scan |
 | `agent-brain migrate` | Write format manifest |
 | `agent-brain record validate\|id` | Governance / ULID helper |
+| `agent-brain retrieve rebuild\|search` | Derived FTS5 index (candidates only) |
+| `agent-brain context build` | Minimal project context pack |
 
 ### Legacy scripts (compatibility)
 

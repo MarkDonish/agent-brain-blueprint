@@ -1,7 +1,14 @@
 # Optimization Notes
 
 Date: 2026-08-11  
-Current public target: **0.6.0** (unified CLI)
+Current public target: **0.7.0** (FTS retrieval + context builder)
+
+## 0.7.0 shipped (retrieval)
+
+1. SQLite FTS5 derived index (rebuildable, gitignored).
+2. `retrieve rebuild|search` with hard filters + candidate-only results.
+3. `context build` with token budget and fixed priority order.
+4. No vector DB / embeddings.
 
 ## 0.6.0 shipped (CLI)
 
