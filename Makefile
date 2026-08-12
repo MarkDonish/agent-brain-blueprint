@@ -42,6 +42,9 @@ cli-smoke:
 	$(AB) retrieve rebuild /tmp/agent-brain-cli-smoke-vault
 	$(AB) retrieve search /tmp/agent-brain-cli-smoke-vault "current work" --project cli-app --limit 5
 	$(AB) context build /tmp/agent-brain-cli-smoke-vault --project cli-app --task "cli smoke" --max-tokens 2000 --json --meta-only
+	$(AB) memory promote /tmp/agent-brain-cli-smoke-vault --project cli-app --title "Smoke decision" --conclusion "CLI smoke promotes only explicit durable notes." --source "cli-smoke" --confidence verified
+	$(AB) memory review /tmp/agent-brain-cli-smoke-vault --project cli-app
+	$(AB) session start /tmp/agent-brain-cli-smoke-vault --project cli-app --task "smoke" --json --meta-only
 	$(AB) privacy .
 
 verify: test doctor demo-doctor privacy bootstrap-smoke cli-smoke

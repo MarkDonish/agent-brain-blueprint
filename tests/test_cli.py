@@ -128,15 +128,10 @@ class CliTests(unittest.TestCase):
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertTrue(proc.stdout.strip().startswith("mem_"))
 
-    def test_deferred_memory(self) -> None:
-        proc = run_cli("memory")
-        self.assertEqual(proc.returncode, 2)
-        self.assertIn("0.8.0", proc.stderr)
-
-    def test_version_0_7(self) -> None:
-        proc = run_cli("--version")
+    def test_memory_help(self) -> None:
+        proc = run_cli("memory", "--help")
         self.assertEqual(proc.returncode, 0)
-        self.assertIn("0.7.0", proc.stdout)
+        self.assertIn("promote", proc.stdout)
 
     def test_privacy_scan_repo(self) -> None:
         proc = run_cli("privacy", str(ROOT))

@@ -1,4 +1,4 @@
-# agent-brain CLI (0.7.0)
+# agent-brain CLI (0.8.0)
 
 Markdown remains the **canonical** vault data. The CLI is the **tooling runtime**.
 
@@ -47,10 +47,8 @@ python3 scripts/doctor.py ./my-vault
 | `agent-brain retrieve rebuild [vault]` | Rebuild derived FTS index |
 | `agent-brain retrieve search [vault] QUERY` | FTS + filters (candidates only) |
 | `agent-brain context build [vault] --project P` | Minimal context pack |
-
-Planned later:
-
-- deeper `memory` promotion / supersede workflows → 0.8.0+
+| `agent-brain memory promote\|supersede\|review` | Explicit durable memory lifecycle |
+| `agent-brain session start\|end` | Host session adapters (Codex/Claude/Cursor) |
 
 ## Claim workflow
 

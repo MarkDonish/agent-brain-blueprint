@@ -1,7 +1,14 @@
 # Optimization Notes
 
 Date: 2026-08-11  
-Current public target: **0.7.0** (FTS retrieval + context builder)
+Current public target: **0.8.0** (memory promote + session adapters)
+
+## 0.8.0 shipped (memory + session)
+
+1. Explicit `memory promote|supersede|review` (never auto from chat).
+2. Host-agnostic `session start|end` adapters with optional claim close/handoff.
+3. Production risk still requires verified confidence at promote time.
+4. Still no distributed lock / no memory command execution.
 
 ## 0.7.0 shipped (retrieval)
 

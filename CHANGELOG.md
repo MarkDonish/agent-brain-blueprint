@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8.0 - 2026-08-12
+
+Memory promotion lifecycle + host session adapters (local-first).
+
+- `memory promote` writes governed durable decisions/facts (schema-checked; production requires verified).
+- `memory supersede` marks prior `record_id` superseded and promotes a linked replacement.
+- `memory review` lists past `review_after` / `next_review` / `review-required` records.
+- `session start` / `session end` host-agnostic adapters (context guidance, optional claim close + handoff).
+- Explicit non-goals retained: no auto-promote from chat, no command auto-exec from memory.
+- Docs: `docs/memory-lifecycle.md`, `docs/session-adapters.md`; CLI version 0.8.0.
+
 ## 0.7.0 - 2026-08-11
 
 Retrieval + context builder (still Markdown-canonical).

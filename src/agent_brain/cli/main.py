@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""agent-brain unified CLI (0.7.0).
+"""agent-brain unified CLI (0.8.0).
 
 Vault remains the data plane. This CLI is the runtime/tooling surface.
 Legacy `python scripts/*.py` entrypoints stay as compatibility wrappers.
 Retrieval indexes are derived/rebuildable and never canonical.
+Memory promotion is explicit — never automatic from chat.
 """
 
 from __future__ import annotations
@@ -18,9 +19,14 @@ from agent_brain.cli.claim_ops import acquire_claim, close_claim
 from agent_brain.cli.project_ops import add_project, list_projects
 from agent_brain.cli.runner import run_script
 from agent_brain.context.builder import build_context
+from agent_brain.memory.promote import promote_memory
+from agent_brain.memory.review import list_review_due
+from agent_brain.memory.supersede import supersede_memory
 from agent_brain.paths import ensure_scripts_on_path, repo_root
 from agent_brain.retrieval.index import rebuild_index
 from agent_brain.retrieval.query import search
+from agent_brain.session.end import session_end
+from agent_brain.session.start import session_start
 
 
 def _cmd_init(args: argparse.Namespace) -> int:
@@ -219,7 +225,6 @@ def _cmd_context_build(args: argparse.Namespace) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     if args.json:
-        # omit huge document duplication if meta-only requested
         out = dict(pack)
         if args.meta_only:
             out.pop("document", None)
@@ -231,6 +236,124 @@ def _cmd_context_build(args: argparse.Namespace) -> int:
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(pack["document"], encoding="utf-8")
             print(f"\n# wrote {path}", file=sys.stderr)
+    return 0
+
+
+def _cmd_memory_promote(args: argparse.Namespace) -> int:
+    try:
+        result = promote_memory(
+            Path(args.vault),
+            project=None if args.global_decision else args.project,
+            title=args.title,
+            conclusion=args.conclusion,
+            source=args.source,
+            owner=args.owner,
+            memory_type=args.memory_type,
+            knowledge_type=args.knowledge_type,
+            confidence=args.confidence,
+            freshness=args.freshness,
+            scope=args.scope,
+            risk_boundary=args.risk_boundary,
+            next_review=args.next_review,
+            review_after=args.review_after,
+            source_path_or_url=args.source_path or "",
+            global_decision=args.global_decision,
+            dry_run=args.dry_run,
+            filename=args.filename,
+        )
+    except Exception as exc:  # noqa: BLE001
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    print(json.dumps(result, indent=2))
+    return 0
+
+
+def _cmd_memory_supersede(args: argparse.Namespace) -> int:
+    try:
+        result = supersede_memory(
+            Path(args.vault),
+            old_record_id=args.record_id,
+            title=args.title,
+            conclusion=args.conclusion,
+            source=args.source,
+            owner=args.owner,
+            confidence=args.confidence,
+            risk_boundary=args.risk_boundary,
+            project=args.project,
+            dry_run=args.dry_run,
+        )
+    except Exception as exc:  # noqa: BLE001
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    print(json.dumps(result, indent=2))
+    return 0
+
+
+def _cmd_memory_review(args: argparse.Namespace) -> int:
+    try:
+        result = list_review_due(Path(args.vault), project=args.project)
+    except Exception as exc:  # noqa: BLE001
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    print(json.dumps(result, indent=2))
+    return 0 if result.get("due_count", 0) == 0 or not args.fail_if_due else 2
+
+
+def _cmd_session_start(args: argparse.Namespace) -> int:
+    try:
+        packet = session_start(
+            Path(args.vault),
+            project=args.project,
+            task=args.task or "",
+            session_id=args.session_id,
+            max_tokens=args.max_tokens,
+            include_context=not args.no_context,
+        )
+    except Exception as exc:  # noqa: BLE001
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    if args.json:
+        out = dict(packet)
+        if args.meta_only:
+            out.pop("context_document", None)
+        print(json.dumps(out, indent=2))
+    else:
+        print(f"# Session start · {packet['project']}")
+        print()
+        print(packet["control_plane_reminder"])
+        print()
+        print("## Paths")
+        for key, value in packet["paths"].items():
+            print(f"- {key}: `{value}`")
+        print()
+        print("## Suggested commands")
+        for key, value in packet["suggested_commands"].items():
+            print(f"- **{key}**: `{value}`")
+        if packet.get("context_document") and not args.meta_only:
+            print()
+            print("---")
+            print()
+            print(packet["context_document"])
+    return 0
+
+
+def _cmd_session_end(args: argparse.Namespace) -> int:
+    try:
+        result = session_end(
+            Path(args.vault),
+            project=args.project,
+            session_id=args.session_id,
+            claim=args.claim,
+            close_claim_file=args.close_claim,
+            handoff_summary=args.handoff_summary,
+            next_action=args.next_action,
+            owner=args.owner,
+            write_handoff=args.write_handoff,
+        )
+    except Exception as exc:  # noqa: BLE001
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    print(json.dumps(result, indent=2))
     return 0
 
 
@@ -377,9 +500,77 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--write", type=Path, default=None, help="also write markdown pack to path")
     p.set_defaults(func=_cmd_context_build)
 
-    # deferred deeper memory promotion
-    p = sub.add_parser("memory", help="planned for 0.8.0 (promotion / supersede workflows)")
-    p.set_defaults(func=lambda args: _cmd_deferred("memory", "0.8.0"))
+    # memory promotion / lifecycle (explicit only)
+    mem = sub.add_parser(
+        "memory",
+        help="explicit durable memory promote / supersede / review (never auto from chat)",
+    )
+    mem_sub = mem.add_subparsers(dest="memory_command", required=True)
+    p = mem_sub.add_parser("promote", help="write a governed durable decision/fact")
+    p.add_argument("vault", nargs="?", type=Path, default=Path("."))
+    p.add_argument("--project", default=None, help="project slug (required unless --global)")
+    p.add_argument("--global", dest="global_decision", action="store_true")
+    p.add_argument("--title", required=True)
+    p.add_argument("--conclusion", required=True)
+    p.add_argument("--source", required=True)
+    p.add_argument("--source-path", default=None)
+    p.add_argument("--owner", default="demo-user")
+    p.add_argument("--memory-type", default="decision", choices=["decision", "fact", "workflow", "lesson", "evidence"])
+    p.add_argument("--knowledge-type", default=None)
+    p.add_argument("--confidence", default="verified")
+    p.add_argument("--freshness", default="current")
+    p.add_argument("--scope", default=None)
+    p.add_argument("--risk-boundary", default="normal")
+    p.add_argument("--next-review", default=None)
+    p.add_argument("--review-after", default=None)
+    p.add_argument("--filename", default=None)
+    p.add_argument("--dry-run", action="store_true")
+    p.set_defaults(func=_cmd_memory_promote)
+
+    p = mem_sub.add_parser("supersede", help="mark old record superseded and promote replacement")
+    p.add_argument("vault", nargs="?", type=Path, default=Path("."))
+    p.add_argument("--record-id", required=True, help="old record_id to supersede")
+    p.add_argument("--title", required=True)
+    p.add_argument("--conclusion", required=True)
+    p.add_argument("--source", required=True)
+    p.add_argument("--project", default=None)
+    p.add_argument("--owner", default="demo-user")
+    p.add_argument("--confidence", default="verified")
+    p.add_argument("--risk-boundary", default="normal")
+    p.add_argument("--dry-run", action="store_true")
+    p.set_defaults(func=_cmd_memory_supersede)
+
+    p = mem_sub.add_parser("review", help="list records past review_after/next_review")
+    p.add_argument("vault", nargs="?", type=Path, default=Path("."))
+    p.add_argument("--project", default=None)
+    p.add_argument("--fail-if-due", action="store_true", help="exit 2 when any due items")
+    p.set_defaults(func=_cmd_memory_review)
+
+    # session start / end adapters
+    sess = sub.add_parser("session", help="host-agnostic session start/end adapters")
+    sess_sub = sess.add_subparsers(dest="session_command", required=True)
+    p = sess_sub.add_parser("start", help="context + claim guidance (no silent writes)")
+    p.add_argument("vault", nargs="?", type=Path, default=Path("."))
+    p.add_argument("--project", required=True)
+    p.add_argument("--task", default="")
+    p.add_argument("--session-id", default=None)
+    p.add_argument("--max-tokens", type=int, default=8000)
+    p.add_argument("--no-context", action="store_true")
+    p.add_argument("--json", action="store_true")
+    p.add_argument("--meta-only", action="store_true")
+    p.set_defaults(func=_cmd_session_start)
+
+    p = sess_sub.add_parser("end", help="closeout checklist; optional claim close / handoff")
+    p.add_argument("vault", nargs="?", type=Path, default=Path("."))
+    p.add_argument("--project", required=True)
+    p.add_argument("--session-id", default=None)
+    p.add_argument("--claim", default=None, help="claim path to close when --close-claim")
+    p.add_argument("--close-claim", action="store_true")
+    p.add_argument("--write-handoff", action="store_true")
+    p.add_argument("--handoff-summary", default=None)
+    p.add_argument("--next-action", default="Continue from unfinished items")
+    p.add_argument("--owner", default="demo-user")
+    p.set_defaults(func=_cmd_session_end)
 
     # meta
     p = sub.add_parser("version", help="print version")

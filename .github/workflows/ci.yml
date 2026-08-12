@@ -31,6 +31,9 @@ jobs:
           python -m agent_brain retrieve rebuild "$RUNNER_TEMP/cli-vault"
           python -m agent_brain retrieve search "$RUNNER_TEMP/cli-vault" "current work" --project cli-app --limit 5
           python -m agent_brain context build "$RUNNER_TEMP/cli-vault" --project cli-app --task "ci" --max-tokens 2000 --json --meta-only
+          python -m agent_brain memory promote "$RUNNER_TEMP/cli-vault" --project cli-app --title "CI decision" --conclusion "Promote is explicit only." --source "ci" --confidence verified
+          python -m agent_brain memory review "$RUNNER_TEMP/cli-vault" --project cli-app
+          python -m agent_brain session start "$RUNNER_TEMP/cli-vault" --project cli-app --task "ci" --json --meta-only
 
       - name: Template vault checks
         run: |

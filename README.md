@@ -145,6 +145,8 @@ Details: [docs/session-claims-and-closeout.md](docs/session-claims-and-closeout.
 | `agent-brain record validate\|id` | Governance / ULID helper |
 | `agent-brain retrieve rebuild\|search` | Derived FTS5 index (candidates only) |
 | `agent-brain context build` | Minimal project context pack |
+| `agent-brain memory promote\|supersede\|review` | Explicit durable memory lifecycle |
+| `agent-brain session start\|end` | Host session start/end adapters |
 
 ### Legacy scripts (compatibility)
 
