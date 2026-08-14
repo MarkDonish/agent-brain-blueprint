@@ -1,0 +1,25 @@
+name: 💡 Feature Request
+description: Suggest an idea or capability enhancement for agent-brain.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Is your feature request related to a specific multi-agent problem?
+      description: A clear description of what problem you are facing.
+      placeholder: "When working with multiple agents across sessions, I noticed..."
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What would you like agent-brain to do?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any alternative solutions or workarounds you considered.
+

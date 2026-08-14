@@ -93,6 +93,32 @@ into `60_templates/`, installs a vault `.gitignore`, writes
 
 Full command reference: [docs/cli.md](docs/cli.md).
 
+## Connect to your Agent host via MCP
+
+`agent-brain` includes a zero-dependency stdio Model Context Protocol (MCP) server:
+
+```bash
+python -m agent_brain mcp /path/to/your/vault
+```
+
+Add to your host configuration (e.g. `~/.gemini/config/mcp_config.json` or Claude Code MCP settings):
+
+```json
+{
+  "mcpServers": {
+    "agent-brain": {
+      "command": "python3",
+      "args": ["-m", "agent_brain", "mcp", "/path/to/your/vault"],
+      "env": {
+        "PYTHONPATH": "/path/to/agent-brain-blueprint/src:/path/to/agent-brain-blueprint/scripts"
+      }
+    }
+  }
+}
+```
+
+Exposes 8 standard tools: `agent_brain_search`, `agent_brain_context`, `agent_brain_doctor`, `agent_brain_claim_status`, `agent_brain_claim_gate`, `agent_brain_claim_acquire`, `agent_brain_claim_close`, `agent_brain_promote_memory`.
+
 ## Design principles
 
 1. **Markdown first.** Readable, diffable, portable.

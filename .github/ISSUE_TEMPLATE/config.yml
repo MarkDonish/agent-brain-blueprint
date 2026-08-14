@@ -1,2 +1,5 @@
 blank_issues_enabled: true
-contact_links: []
+contact_links:
+  - name: Architecture & Design Principles
+    url: https://github.com/MarkDonish/agent-brain-blueprint/blob/main/docs/architecture.md
+    about: Read about Markdown-canonical multi-agent shared memory principles.

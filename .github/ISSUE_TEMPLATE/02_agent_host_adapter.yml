@@ -1,0 +1,34 @@
+name: 🤖 Agent Host Adapter Request / Proposal
+description: Propose integration rules, hooks, or MCP configurations for a new AI coding agent host.
+labels: ["enhancement", "agent-adapter"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Agent Brain is host-agnostic and designed to work across Codex, Claude Code, Antigravity, Cursor, and other local agents.
+  - type: input
+    id: host_name
+    attributes:
+      label: Agent host name
+      placeholder: "e.g. Cursor, OpenClaw, Hermes, Aider, Windsurf"
+    validations:
+      required: true
+  - type: dropdown
+    id: integration_type
+    attributes:
+      label: Integration type
+      options:
+        - "MCP Server (stdio tools/context)"
+        - "Session Hooks (pre/post session start & end)"
+        - "Prompt / Operating Rule (AGENTS.md / system prompt)"
+        - "Skill / Tool Extension"
+        - "Other"
+    validations:
+      required: true
+  - type: textarea
+    id: adapter_details
+    attributes:
+      label: Adapter workflow / Proposal details
+      description: How should this agent interact with the vault (e.g. read order, session claim lifecycle, MCP config)?
+    validations:
+      required: true
