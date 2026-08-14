@@ -14,13 +14,21 @@ _SAFE_TOKEN = re.compile(r"[A-Za-z0-9_./-]+")
 
 
 def _fts_query(raw: str) -> str:
-    """Build a simple FTS5 query from free text (AND of tokens)."""
-    tokens = _SAFE_TOKEN.findall(raw)
+    """Build a robust FTS5 query supporting both ASCII terms and CJK character phrases."""
+    tokens: list[str] = []
+    for part in re.finditer(
+        r"([A-Za-z0-9_./-]+)|([\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]+)", raw
+    ):
+        ascii_tok, cjk_tok = part.groups()
+        if ascii_tok:
+            tokens.append(ascii_tok)
+        elif cjk_tok:
+            spaced = " ".join(list(cjk_tok))
+            tokens.append(f'"{spaced}"')
     if not tokens:
-        # fallback: quote whole string stripped of quotes
         cleaned = raw.replace('"', " ").strip()
         return f'"{cleaned}"' if cleaned else '""'
-    return " ".join(tokens)
+    return " AND ".join(tokens)
 
 
 def search(
@@ -70,7 +78,9 @@ def search(
 
     sql = f"""
         SELECT
-          record_id, path, project, record_type, memory_type, title, body,
+          record_id, path, project, record_type, memory_type,
+          coalesce(raw_title, title) AS title,
+          coalesce(raw_body, body) AS body,
           state, freshness, scope, risk_boundary, updated_at,
           bm25(records_fts) AS score
         FROM records_fts

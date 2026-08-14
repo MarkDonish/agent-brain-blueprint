@@ -132,21 +132,22 @@ Details: [docs/session-claims-and-closeout.md](docs/session-claims-and-closeout.
 
 ## Tooling
 
-### CLI (0.6+)
+### CLI (0.9+)
 
 | Command | Purpose |
 | --- | --- |
 | `agent-brain init` | Bootstrap vault |
 | `agent-brain doctor` | Format + structure + governance + claims |
-| `agent-brain claim acquire\|gate\|status\|close` | Session claims workflow |
+| `agent-brain claim acquire\|gate\|status\|close\|renew\|prune` | Session claims workflow + TTL management |
 | `agent-brain project list\|add` | Project skeletons |
 | `agent-brain privacy` | Pre-publish secret/path scan |
 | `agent-brain migrate` | Write format manifest |
 | `agent-brain record validate\|id` | Governance / ULID helper |
-| `agent-brain retrieve rebuild\|search` | Derived FTS5 index (candidates only) |
+| `agent-brain retrieve rebuild\|search` | Derived FTS5 index (CJK & multilingual optimized) |
 | `agent-brain context build` | Minimal project context pack |
 | `agent-brain memory promote\|supersede\|review` | Explicit durable memory lifecycle |
 | `agent-brain session start\|end` | Host session start/end adapters |
+| `agent-brain mcp` | Zero-dependency stdio Model Context Protocol (MCP) server |
 
 ### Legacy scripts (compatibility)
 

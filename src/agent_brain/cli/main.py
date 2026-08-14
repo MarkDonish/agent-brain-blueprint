@@ -15,10 +15,16 @@ import sys
 from pathlib import Path
 
 from agent_brain import __version__
-from agent_brain.cli.claim_ops import acquire_claim, close_claim
+from agent_brain.cli.claim_ops import (
+    acquire_claim,
+    close_claim,
+    prune_claims,
+    renew_claim,
+)
 from agent_brain.cli.project_ops import add_project, list_projects
 from agent_brain.cli.runner import run_script
 from agent_brain.context.builder import build_context
+from agent_brain.mcp.server import run_mcp_server
 from agent_brain.memory.promote import promote_memory
 from agent_brain.memory.review import list_review_due
 from agent_brain.memory.supersede import supersede_memory
@@ -157,6 +163,38 @@ def _cmd_claim_close(args: argparse.Namespace) -> int:
         return 2
     print(f"closed claim: {path}")
     return 0
+
+
+def _cmd_claim_renew(args: argparse.Namespace) -> int:
+    try:
+        path = renew_claim(Path(args.vault), args.claim, hours=args.hours)
+    except Exception as exc:  # noqa: BLE001
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    print(f"renewed claim: {path} (+{args.hours}h)")
+    return 0
+
+
+def _cmd_claim_prune(args: argparse.Namespace) -> int:
+    try:
+        pruned = prune_claims(Path(args.vault), dry_run=args.dry_run)
+    except Exception as exc:  # noqa: BLE001
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    if args.json:
+        print(json.dumps(pruned, indent=2))
+    else:
+        if not pruned:
+            print("no expired active claims found to prune")
+        for item in pruned:
+            action = "would prune" if args.dry_run else "pruned"
+            print(f"{action}: {item['path']} (session {item['session_id']}, expired {item['expired_at']})")
+    return 0
+
+
+def _cmd_mcp(args: argparse.Namespace) -> int:
+    vault_path = Path(args.vault) if args.vault else None
+    return run_mcp_server(vault_path)
 
 
 def _cmd_format(args: argparse.Namespace) -> int:
@@ -451,6 +489,18 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--summary", default="Closed via agent-brain claim close")
     p.set_defaults(func=_cmd_claim_close)
 
+    p = claim_sub.add_parser("renew", help="extend active claim TTL hours")
+    p.add_argument("vault", nargs="?", type=Path, default=Path("."))
+    p.add_argument("--claim", required=True, help="vault-relative claim path")
+    p.add_argument("--hours", type=int, default=8, help="hours to extend from now (default 8)")
+    p.set_defaults(func=_cmd_claim_renew)
+
+    p = claim_sub.add_parser("prune", help="auto-close expired active claims")
+    p.add_argument("vault", nargs="?", type=Path, default=Path("."))
+    p.add_argument("--dry-run", action="store_true")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=_cmd_claim_prune)
+
     # record
     rec = sub.add_parser("record", help="record helpers (validate, id)")
     rec_sub = rec.add_subparsers(dest="record_command", required=True)
@@ -571,6 +621,15 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--next-action", default="Continue from unfinished items")
     p.add_argument("--owner", default="demo-user")
     p.set_defaults(func=_cmd_session_end)
+
+    # mcp server
+    p = sub.add_parser(
+        "mcp",
+        help="run zero-dependency stdio Model Context Protocol (MCP) server",
+        description="Run zero-dependency stdio Model Context Protocol (MCP) server.",
+    )
+    p.add_argument("vault", nargs="?", type=Path, default=Path("."), help="default vault directory")
+    p.set_defaults(func=_cmd_mcp)
 
     # meta
     p = sub.add_parser("version", help="print version")

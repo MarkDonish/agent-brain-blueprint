@@ -187,10 +187,10 @@ record_id: mem_01HF7YAT00000G40R40M30E209
             self.assertIn("status: closed", claim_text)
             self.assertTrue(any(a["type"] == "handoff_written" for a in end_payload["actions"]))
 
-    def test_version_0_8(self) -> None:
+    def test_version_0_9(self) -> None:
         proc = run_cli("--version")
         self.assertEqual(proc.returncode, 0)
-        self.assertIn("0.8.0", proc.stdout)
+        self.assertIn("0.9.0", proc.stdout)
 
 
 if __name__ == "__main__":

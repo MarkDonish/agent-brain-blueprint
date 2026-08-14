@@ -139,6 +139,48 @@ class CliTests(unittest.TestCase):
         payload = json.loads(proc.stdout)
         self.assertEqual(payload["secret_finding_count"], 0)
 
+    def test_claim_renew_and_prune(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            vault = Path(directory) / "vault"
+            self.assertEqual(run_cli("init", "--destination", str(vault)).returncode, 0)
+
+            proc = run_cli(
+                "claim",
+                "acquire",
+                str(vault),
+                "--session-id",
+                "renew-test",
+                "--task",
+                "test renew",
+                "--path",
+                "10_projects/example-app/10_current_work/INDEX.md",
+                "--filename",
+                "renew-claim.md",
+                "--hours",
+                "1",
+            )
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+
+            renew_proc = run_cli(
+                "claim",
+                "renew",
+                str(vault),
+                "--claim",
+                "40_handoffs/session_claims/renew-claim.md",
+                "--hours",
+                "12",
+            )
+            self.assertEqual(renew_proc.returncode, 0, renew_proc.stderr)
+
+            prune_proc = run_cli("claim", "prune", str(vault), "--dry-run", "--json")
+            self.assertEqual(prune_proc.returncode, 0, prune_proc.stderr)
+            self.assertEqual(json.loads(prune_proc.stdout), [])
+
+    def test_mcp_help(self) -> None:
+        proc = run_cli("mcp", "--help")
+        self.assertEqual(proc.returncode, 0)
+        self.assertIn("Model Context Protocol", proc.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

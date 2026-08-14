@@ -188,5 +188,98 @@ def close_claim(vault: Path, claim_rel_or_abs: str, *, summary: str = "Closed vi
     return path
 
 
+def renew_claim(
+    vault: Path, claim_rel_or_abs: str, *, hours: int = 8
+) -> Path:
+    ensure_scripts_on_path()
+    from lib.path_safety import PathSafetyError, safe_relative_path, safe_vault_join
+
+    root = vault.expanduser().resolve()
+    raw = claim_rel_or_abs
+    if Path(raw).is_absolute():
+        path = Path(raw).resolve()
+        try:
+            path.relative_to(root)
+        except ValueError as exc:
+            raise PathSafetyError(f"claim path outside vault: {raw}") from exc
+    else:
+        rel = safe_relative_path(root, raw)
+        if rel is None:
+            raise PathSafetyError(f"unsafe claim path: {raw}")
+        path = safe_vault_join(root, *rel.split("/"))
+    if not path.is_file():
+        raise FileNotFoundError(f"claim not found: {path}")
+
+    text = path.read_text(encoding="utf-8")
+    if not text.startswith("---"):
+        raise ValueError("claim file has no frontmatter")
+
+    new_expires = (
+        datetime.now(timezone.utc).replace(microsecond=0) + timedelta(hours=max(1, hours))
+    ).isoformat()
+
+    lines = text.splitlines()
+    out: list[str] = []
+    in_fm = False
+    for line in lines:
+        if line.strip() == "---":
+            in_fm = not in_fm
+            out.append(line)
+            continue
+        if in_fm and line.startswith("expires_at:"):
+            out.append(f"expires_at: {new_expires}")
+            continue
+        if in_fm and line.startswith("status:"):
+            out.append("status: active")
+            continue
+        out.append(line)
+
+    path.write_text("\n".join(out) + ("\n" if text.endswith("\n") else ""), encoding="utf-8")
+    return path
+
+
+def prune_claims(vault: Path, *, dry_run: bool = False) -> list[dict[str, Any]]:
+    ensure_scripts_on_path()
+    from lib.frontmatter import parse_frontmatter
+
+    root = vault.expanduser().resolve()
+    claims_dir = root / "40_handoffs" / "session_claims"
+    if not claims_dir.is_dir():
+        return []
+
+    now = datetime.now(timezone.utc).replace(microsecond=0)
+    pruned: list[dict[str, Any]] = []
+
+    for path in sorted(claims_dir.glob("*.md")):
+        if not path.is_file():
+            continue
+        try:
+            data, _ = parse_frontmatter(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+
+        status = str(data.get("status") or "")
+        expires_raw = str(data.get("expires_at") or "")
+        if status == "active" and expires_raw:
+            try:
+                exp_dt = datetime.fromisoformat(expires_raw.replace("Z", "+00:00"))
+                if exp_dt.tzinfo is None:
+                    exp_dt = exp_dt.replace(tzinfo=timezone.utc)
+                if exp_dt < now:
+                    rel = str(path.relative_to(root))
+                    pruned.append({
+                        "path": rel,
+                        "session_id": data.get("session_id"),
+                        "expired_at": expires_raw,
+                    })
+                    if not dry_run:
+                        close_claim(root, rel, summary="Auto-pruned expired claim")
+            except Exception:
+                continue
+
+    return pruned
+
+
 def template_path() -> Path:
     return repo_root() / "templates" / "session_claim.md"
+

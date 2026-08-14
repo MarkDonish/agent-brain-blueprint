@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -13,6 +14,13 @@ INDEX_REL = "50_retrieval/indexes/fts.sqlite"
 
 def default_index_path(vault: Path) -> Path:
     return vault.expanduser().resolve() / INDEX_REL
+
+
+def _normalize_cjk(text: str) -> str:
+    """Insert spaces around CJK characters to enable fine-grained FTS5 indexing with unicode61."""
+    if not text:
+        return ""
+    return re.sub(r"([\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af])", r" \1 ", text)
 
 
 def rebuild_index(vault: Path, *, index_path: Path | None = None) -> dict[str, Any]:
@@ -35,6 +43,8 @@ def rebuild_index(vault: Path, *, index_path: Path | None = None) -> dict[str, A
             CREATE VIRTUAL TABLE records_fts USING fts5(
               title,
               body,
+              raw_title UNINDEXED,
+              raw_body UNINDEXED,
               path UNINDEXED,
               record_id UNINDEXED,
               project UNINDEXED,
@@ -58,10 +68,12 @@ def rebuild_index(vault: Path, *, index_path: Path | None = None) -> dict[str, A
             """
         )
         conn.execute(
-            "INSERT INTO meta(key, value) VALUES ('kind', 'agent-brain-fts'), ('version', '1')"
+            "INSERT INTO meta(key, value) VALUES ('kind', 'agent-brain-fts'), ('version', '2')"
         )
         rows = [
             (
+                _normalize_cjk(r["title"]),
+                _normalize_cjk(r["body"]),
                 r["title"],
                 r["body"],
                 r["path"],
@@ -80,9 +92,9 @@ def rebuild_index(vault: Path, *, index_path: Path | None = None) -> dict[str, A
         conn.executemany(
             """
             INSERT INTO records_fts(
-              title, body, path, record_id, project, record_type, memory_type,
+              title, body, raw_title, raw_body, path, record_id, project, record_type, memory_type,
               state, freshness, scope, risk_boundary, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             rows,
         )

@@ -1,4 +1,4 @@
-# agent-brain CLI (0.8.0)
+# agent-brain CLI (0.9.0)
 
 Markdown remains the **canonical** vault data. The CLI is the **tooling runtime**.
 
@@ -42,13 +42,16 @@ python3 scripts/doctor.py ./my-vault
 | `agent-brain claim gate ...` | Pre-write advisory gate |
 | `agent-brain claim status ...` | Validate claims |
 | `agent-brain claim close --claim PATH` | Mark claim closed |
+| `agent-brain claim renew --claim PATH` | Extend active claim TTL hours |
+| `agent-brain claim prune [vault]` | Auto-close expired active claims |
 | `agent-brain record validate [vault]` | Governance check |
 | `agent-brain record id [--prefix mem]` | Generate ULID `record_id` |
-| `agent-brain retrieve rebuild [vault]` | Rebuild derived FTS index |
+| `agent-brain retrieve rebuild [vault]` | Rebuild derived FTS index (CJK optimized) |
 | `agent-brain retrieve search [vault] QUERY` | FTS + filters (candidates only) |
 | `agent-brain context build [vault] --project P` | Minimal context pack |
 | `agent-brain memory promote\|supersede\|review` | Explicit durable memory lifecycle |
-| `agent-brain session start\|end` | Host session adapters (Codex/Claude/Cursor) |
+| `agent-brain session start\|end` | Host session adapters (Codex/Claude/Antigravity) |
+| `agent-brain mcp [vault]` | Zero-dependency stdio Model Context Protocol (MCP) server |
 
 ## Claim workflow
 

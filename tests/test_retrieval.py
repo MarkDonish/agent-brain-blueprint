@@ -197,6 +197,46 @@ state: active
             self.assertIn("estimated_tokens", ctx.stdout)
             self.assertIn("section_count", ctx.stdout)
 
+    def test_cjk_multilingual_search(self) -> None:
+        sys.path.insert(0, str(SRC))
+        sys.path.insert(0, str(SCRIPTS))
+        from agent_brain.retrieval.index import rebuild_index
+        from agent_brain.retrieval.query import search
+
+        with tempfile.TemporaryDirectory() as directory:
+            vault = Path(directory) / "vault"
+            (vault / "10_projects" / "ai-relay" / "50_decisions").mkdir(parents=True)
+            (vault / "00_entrypoint").mkdir(parents=True)
+            (vault / "00_entrypoint" / "SESSION_START_CARD.md").write_text("# start\n", encoding="utf-8")
+            (vault / "AGENTS.md").write_text("# agents\n", encoding="utf-8")
+
+            doc = vault / "10_projects" / "ai-relay" / "50_decisions" / "2026-08-11_relay.md"
+            doc.write_text(
+                """---
+memory_type: decision
+title: 中转部署与公网IP试运营决策
+source: Mark 明确确认
+confidence: verified
+freshness: current
+scope: project
+risk_boundary: normal
+next_review: 2099-01-01
+owner: Mark
+state: active
+---
+# 中转部署与公网IP试运营决策
+生产机选型完成，采用公网IP直接试运营，暂缓购买域名。
+""",
+                encoding="utf-8",
+            )
+            rebuild_index(vault)
+
+            for q in ["中转部署", "公网IP", "试运营", "生产机", "暂缓购买域名"]:
+                res = search(vault, q, project="ai-relay")
+                self.assertTrue(res["ok"], f"query {q} failed: {res}")
+                self.assertGreaterEqual(res["hit_count"], 1, f"query {q} yielded 0 hits: {res}")
+                self.assertEqual(res["hits"][0]["title"], "中转部署与公网IP试运营决策")
+
 
 if __name__ == "__main__":
     unittest.main()

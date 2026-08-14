@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.9.0 - 2026-08-14
+
+Native MCP server + Chinese/multilingual FTS retrieval + claim lifecycle automation.
+
+- Add native zero-dependency stdio Model Context Protocol (MCP) server: `agent-brain mcp` (`src/agent_brain/mcp/`).
+  - Exposes 8 standard tools for AI coding agents: `agent_brain_doctor`, `agent_brain_search`, `agent_brain_context`, `agent_brain_claim_status`, `agent_brain_claim_gate`, `agent_brain_claim_acquire`, `agent_brain_claim_close`, `agent_brain_promote_memory`.
+- Add Chinese & multilingual SQLite FTS5 character-level tokenization and search ranking (supports CJK phrases & mixed queries).
+- Add `agent-brain claim renew` to extend active claim TTL.
+- Add `agent-brain claim prune` to automatically close expired active claims.
+- Add git pre-commit hook template for automated privacy scanning and doctor enforcement.
+
 ## 0.8.0 - 2026-08-12
 
 Memory promotion lifecycle + host session adapters (local-first).
