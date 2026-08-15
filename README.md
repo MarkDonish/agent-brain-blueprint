@@ -117,7 +117,7 @@ Add to your host configuration (e.g. `~/.gemini/config/mcp_config.json` or Claud
 }
 ```
 
-Exposes 8 standard tools: `agent_brain_search`, `agent_brain_context`, `agent_brain_doctor`, `agent_brain_claim_status`, `agent_brain_claim_gate`, `agent_brain_claim_acquire`, `agent_brain_claim_close`, `agent_brain_promote_memory`.
+Exposes 9 standard tools: `agent_brain_search`, `agent_brain_context`, `agent_brain_doctor`, `agent_brain_claim_status`, `agent_brain_claim_gate`, `agent_brain_claim_acquire`, `agent_brain_claim_close`, `agent_brain_promote_memory`, `agent_brain_handoff_create`.
 
 ## Design principles
 
