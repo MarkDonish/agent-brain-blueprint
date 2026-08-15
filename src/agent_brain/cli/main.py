@@ -24,6 +24,7 @@ from agent_brain.cli.claim_ops import (
 from agent_brain.cli.project_ops import add_project, list_projects
 from agent_brain.cli.runner import run_script
 from agent_brain.context.builder import build_context
+from agent_brain.handoff.engine import create_handoff
 from agent_brain.mcp.server import run_mcp_server
 from agent_brain.memory.promote import promote_memory
 from agent_brain.memory.review import list_review_due
@@ -375,6 +376,32 @@ def _cmd_session_start(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_handoff_create(args: argparse.Namespace) -> int:
+    try:
+        result = create_handoff(
+            Path(args.vault),
+            project=args.project,
+            summary=args.summary,
+            session_id=args.session_id,
+            completed_tasks=args.task_completed,
+            evidence=args.evidence,
+            active_decisions=args.active_decision,
+            superseded_decisions=args.superseded_decision,
+            next_steps=args.next_step,
+            blockers=args.blocker,
+            claim=args.claim,
+            close_claim_file=not args.keep_claim,
+            owner=args.owner,
+            to_agent=args.to_agent,
+            dry_run=args.dry_run,
+        )
+    except Exception as exc:  # noqa: BLE001
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    print(json.dumps(result, indent=2))
+    return 0
+
+
 def _cmd_session_end(args: argparse.Namespace) -> int:
     try:
         result = session_end(
@@ -385,6 +412,12 @@ def _cmd_session_end(args: argparse.Namespace) -> int:
             close_claim_file=args.close_claim,
             handoff_summary=args.handoff_summary,
             next_action=args.next_action,
+            completed_tasks=getattr(args, "task_completed", None),
+            evidence=getattr(args, "evidence", None),
+            active_decisions=getattr(args, "active_decision", None),
+            superseded_decisions=getattr(args, "superseded_decision", None),
+            next_steps=getattr(args, "next_step", None),
+            blockers=getattr(args, "blocker", None),
             owner=args.owner,
             write_handoff=args.write_handoff,
         )
@@ -619,8 +652,35 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--write-handoff", action="store_true")
     p.add_argument("--handoff-summary", default=None)
     p.add_argument("--next-action", default="Continue from unfinished items")
+    p.add_argument("--task-completed", action="append", default=[], help="completed task (can specify multiple)")
+    p.add_argument("--evidence", action="append", default=[], help="verification evidence 'command::result'")
+    p.add_argument("--active-decision", action="append", default=[], help="active decision note")
+    p.add_argument("--superseded-decision", action="append", default=[], help="obsoleted decision 'old_note::reason'")
+    p.add_argument("--next-step", action="append", default=[], help="prioritized next step")
+    p.add_argument("--blocker", action="append", default=[], help="known risk or blocker")
     p.add_argument("--owner", default="demo-user")
     p.set_defaults(func=_cmd_session_end)
+
+    # handoff
+    hand = sub.add_parser("handoff", help="intelligent session handoff generation and claim closeout")
+    hand_sub = hand.add_subparsers(dest="handoff_command", required=True)
+    p = hand_sub.add_parser("create", help="create a structured handoff card with audit trail")
+    p.add_argument("vault", nargs="?", type=Path, default=Path("."))
+    p.add_argument("--project", required=True, help="project name or slug")
+    p.add_argument("--summary", required=True, help="30-second status and summary")
+    p.add_argument("--session-id", default=None)
+    p.add_argument("--task-completed", action="append", default=[], help="completed task (can specify multiple)")
+    p.add_argument("--evidence", action="append", default=[], help="verification evidence 'command::result'")
+    p.add_argument("--active-decision", action="append", default=[], help="active decision note")
+    p.add_argument("--superseded-decision", action="append", default=[], help="obsoleted decision 'old_note::reason'")
+    p.add_argument("--next-step", action="append", default=[], help="prioritized next step")
+    p.add_argument("--blocker", action="append", default=[], help="known risk or blocker")
+    p.add_argument("--claim", default=None, help="specific claim path to close")
+    p.add_argument("--keep-claim", action="store_true", help="do not auto-close matching active claim")
+    p.add_argument("--owner", default="agent")
+    p.add_argument("--to-agent", default="next-session")
+    p.add_argument("--dry-run", action="store_true")
+    p.set_defaults(func=_cmd_handoff_create)
 
     # mcp server
     p = sub.add_parser(

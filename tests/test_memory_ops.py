@@ -190,7 +190,7 @@ record_id: mem_01HF7YAT00000G40R40M30E209
     def test_version_0_9(self) -> None:
         proc = run_cli("--version")
         self.assertEqual(proc.returncode, 0)
-        self.assertIn("0.9.0", proc.stdout)
+        self.assertIn("0.9.1", proc.stdout)
 
 
 if __name__ == "__main__":

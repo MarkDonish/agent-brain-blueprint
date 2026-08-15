@@ -13,6 +13,7 @@ from agent_brain import __version__
 from agent_brain.cli.claim_ops import acquire_claim, close_claim
 from agent_brain.cli.runner import run_script_capture
 from agent_brain.context.builder import build_context
+from agent_brain.handoff.engine import create_handoff
 from agent_brain.memory.promote import promote_memory
 from agent_brain.paths import ensure_scripts_on_path
 from agent_brain.retrieval.index import rebuild_index
@@ -241,6 +242,92 @@ TOOL_DEFINITIONS = [
             "required": ["project", "title", "conclusion", "source", "confidence"],
         },
     },
+    {
+        "name": "agent_brain_handoff_create",
+        "description": "Create a structured, source-backed session handoff card with audit trail, active/superseded decisions, next steps, and automatic claim closeout.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "project": {
+                    "type": "string",
+                    "description": "Project name or slug under 10_projects/ or 10_项目工作区/.",
+                },
+                "summary": {
+                    "type": "string",
+                    "description": "1-3 sentence 30-second status and summary of work done.",
+                },
+                "session_id": {
+                    "type": "string",
+                    "description": "Session identifier (e.g. 20260815-antigravity).",
+                },
+                "completed_tasks": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of completed tasks / features.",
+                },
+                "evidence": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "command": {"type": "string"},
+                            "result": {"type": "string"},
+                        },
+                        "required": ["command", "result"],
+                    },
+                    "description": "Fresh validation evidence (verification commands and results).",
+                },
+                "active_decisions": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Active architectural decisions established or re-confirmed.",
+                },
+                "superseded_decisions": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "decision": {"type": "string"},
+                            "reason": {"type": "string"},
+                        },
+                        "required": ["decision", "reason"],
+                    },
+                    "description": "Superseded / obsoleted decisions with reason.",
+                },
+                "next_steps": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Prioritized actionable next steps (P0, P1, P2...).",
+                },
+                "blockers": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Known risks, blockers, or upstream issues.",
+                },
+                "claim_path": {
+                    "type": "string",
+                    "description": "Specific claim file to close.",
+                },
+                "close_claim": {
+                    "type": "boolean",
+                    "description": "Auto-close matching claim or specified claim (default true).",
+                },
+                "owner": {
+                    "type": "string",
+                    "description": "Author or agent name.",
+                },
+                "to_agent": {
+                    "type": "string",
+                    "description": "Next receiver / agent (default next-session).",
+                },
+                "vault_path": {
+                    "type": "string",
+                    "description": "Path to the agent-brain vault.",
+                },
+            },
+            "required": ["project", "summary"],
+        },
+    },
 ]
 
 
@@ -352,6 +439,38 @@ class McpServer:
                     risk_boundary=risk,
                 )
                 return {"content": [{"type": "text", "text": json.dumps(report, ensure_ascii=False, indent=2)}]}
+
+            elif name in ("agent_brain_handoff_create", "agent_brain_session_end"):
+                project = str(args.get("project", "")).strip()
+                summary = str(args.get("summary", "")).strip()
+                session_id = args.get("session_id")
+                completed_tasks = args.get("completed_tasks")
+                evidence = args.get("evidence")
+                active_decisions = args.get("active_decisions")
+                superseded_decisions = args.get("superseded_decisions")
+                next_steps = args.get("next_steps")
+                blockers = args.get("blockers")
+                claim = args.get("claim_path")
+                close_claim_file = bool(args.get("close_claim", True))
+                owner = str(args.get("owner", "mcp-agent"))
+                to_agent = str(args.get("to_agent", "next-session"))
+                res = create_handoff(
+                    vault,
+                    project=project,
+                    summary=summary,
+                    session_id=session_id,
+                    completed_tasks=completed_tasks,
+                    evidence=evidence,
+                    active_decisions=active_decisions,
+                    superseded_decisions=superseded_decisions,
+                    next_steps=next_steps,
+                    blockers=blockers,
+                    claim=claim,
+                    close_claim_file=close_claim_file,
+                    owner=owner,
+                    to_agent=to_agent,
+                )
+                return {"content": [{"type": "text", "text": json.dumps(res, ensure_ascii=False, indent=2)}]}
 
             else:
                 return {"content": [{"type": "text", "text": f"Unknown tool: {name}"}], "isError": True}

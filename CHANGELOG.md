@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.1 - 2026-08-15
+
+Intelligent Session Handoff Engine + dual vault layout awareness + MCP handoff tool.
+
+- Add `src/agent_brain/handoff/`: Intelligent Session Handoff engine (`create_handoff`).
+- Add `agent-brain handoff create` CLI command with audit trail, active/superseded decisions, next steps, and automatic claim closeout.
+- Add `agent_brain_handoff_create` MCP tool to stdio server for Antigravity, Claude Code, and Codex.
+- Add dual-layout awareness: supports English (`10_projects/`, `20_handoffs/`) and Chinese (`10_项目工作区/`, `20_交接记录/`) vault hierarchies automatically.
+- Update `scripts/lib/path_safety.py` to support Unicode/CJK project slugs.
+
 ## 0.9.0 - 2026-08-14
 
 Native MCP server + Chinese/multilingual FTS retrieval + claim lifecycle automation.

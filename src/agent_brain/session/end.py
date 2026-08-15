@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from agent_brain.cli.claim_ops import close_claim
+from agent_brain.handoff.engine import create_handoff
 from agent_brain.paths import ensure_scripts_on_path
 
 
@@ -19,8 +20,15 @@ def session_end(
     close_claim_file: bool = False,
     handoff_summary: str | None = None,
     next_action: str = "Continue from unfinished items",
+    completed_tasks: list[str] | str | None = None,
+    evidence: list[dict[str, str] | str] | str | None = None,
+    active_decisions: list[str] | str | None = None,
+    superseded_decisions: list[dict[str, str] | str] | str | None = None,
+    next_steps: list[str] | str | None = None,
+    blockers: list[str] | str | None = None,
     owner: str = "demo-user",
     write_handoff: bool = False,
+    **_kwargs: Any,
 ) -> dict[str, Any]:
     """Produce closeout guidance; optionally close a claim and write a handoff.
 
@@ -45,58 +53,41 @@ def session_end(
     ]
 
     actions: list[dict[str, Any]] = []
-    if close_claim_file:
+
+    if write_handoff:
+        if not handoff_summary:
+            raise ValueError("write_handoff requires --handoff-summary")
+        all_steps = [next_action] if next_action else []
+        if next_steps:
+            if isinstance(next_steps, list):
+                all_steps.extend(next_steps)
+            else:
+                all_steps.append(str(next_steps))
+        
+        h_res = create_handoff(
+            root,
+            project=slug,
+            summary=handoff_summary,
+            session_id=session_id,
+            completed_tasks=completed_tasks,
+            evidence=evidence,
+            active_decisions=active_decisions,
+            superseded_decisions=superseded_decisions,
+            next_steps=all_steps,
+            blockers=blockers,
+            claim=claim if close_claim_file else None,
+            close_claim_file=close_claim_file,
+            owner=owner,
+        )
+        actions.append({"type": "handoff_written", "path": h_res["path"], "record_id": h_res["record_id"]})
+        if h_res.get("closed_claims"):
+            for cp in h_res["closed_claims"]:
+                actions.append({"type": "claim_closed", "path": cp})
+    elif close_claim_file:
         if not claim:
             raise ValueError("close_claim_file requires --claim path")
         path = close_claim(root, claim, summary=handoff_summary or "Closed at session end")
         actions.append({"type": "claim_closed", "path": str(path.relative_to(root)).replace("\\", "/")})
-
-    handoff_path = None
-    if write_handoff:
-        if not handoff_summary:
-            raise ValueError("write_handoff requires --handoff-summary")
-        hid = new_record_id("hnd")
-        day = date.today().isoformat()
-        dest = root / "10_projects" / slug / "20_handoffs" / f"{day}_session-end.md"
-        body = f"""---
-memory_type: handoff
-record_type: handoff
-record_id: {hid}
-title: Session end handoff
-created_at: {day}
-owner: {owner}
-from: {session_id or 'session'}
-to: next-session
-status: open
-next_action: {next_action}
-source: agent-brain session end
-confidence: pending
-freshness: current
-scope: project
-risk_boundary: normal
-next_review: next session start
----
-
-# Session end handoff
-
-## Summary
-
-{handoff_summary}
-
-## Next action
-
-{next_action}
-
-## Notes
-
-Handoff is data plane. Do not treat this file as executable control-plane policy.
-"""
-        if dest.exists():
-            dest = root / "10_projects" / slug / "20_handoffs" / f"{day}_session-end-{hid[-6:]}.md"
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_text(body, encoding="utf-8")
-        handoff_path = str(dest.relative_to(root)).replace("\\", "/")
-        actions.append({"type": "handoff_written", "path": handoff_path, "record_id": hid})
 
     return {
         "phase": "session_end",

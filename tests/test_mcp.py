@@ -53,6 +53,33 @@ class McpServerTests(unittest.TestCase):
         text = content[0]["text"]
         self.assertIn("check_vault_format.py", text)
 
+    def test_call_handoff_create_tool(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            vault = Path(td)
+            (vault / "10_projects" / "mcp-demo").mkdir(parents=True)
+            call_res = self.server.dispatch({
+                "jsonrpc": "2.0",
+                "id": 5,
+                "method": "tools/call",
+                "params": {
+                    "name": "agent_brain_handoff_create",
+                    "arguments": {
+                        "vault_path": str(vault),
+                        "project": "mcp-demo",
+                        "summary": "Completed MCP handoff integration test.",
+                        "completed_tasks": ["Added MCP handoff endpoint"],
+                        "evidence": [{"command": "make test", "result": "PASS"}],
+                        "active_decisions": ["Standardized intelligent handoff"],
+                        "next_steps": ["Ship v0.9.1"],
+                    },
+                },
+            })
+            self.assertIsNotNone(call_res)
+            content = call_res["result"]["content"]
+            data = json.loads(content[0]["text"])
+            self.assertTrue(data["ok"])
+            self.assertTrue((vault / data["path"]).is_file())
+
     def test_call_context_tool(self) -> None:
         call_res = self.server.dispatch({
             "jsonrpc": "2.0",

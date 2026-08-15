@@ -5,8 +5,9 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-# 1–64 chars; no separators, no parent refs, no absolute forms.
-_PROJECT_SLUG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
+# 1–64 chars; alphanumeric or unicode word/CJK, dots, hyphens, underscores.
+# No separators, no parent refs, no absolute forms.
+_PROJECT_SLUG_RE = re.compile(r"^[\w\u4e00-\u9fff][\w\u4e00-\u9fff._-]{0,63}$", re.UNICODE)
 
 
 class PathSafetyError(ValueError):
@@ -14,7 +15,7 @@ class PathSafetyError(ValueError):
 
 
 def validate_project_slug(project: str) -> str:
-    """Return a validated project folder name under 10_projects/.
+    """Return a validated project folder name.
 
     Rejects empty values, absolute paths, parent escapes, separators, and
     control characters. Length is capped at 64.
@@ -32,7 +33,7 @@ def validate_project_slug(project: str) -> str:
         raise PathSafetyError("project slug must be at most 64 characters")
     if not _PROJECT_SLUG_RE.fullmatch(raw):
         raise PathSafetyError(
-            "project slug must match [A-Za-z0-9][A-Za-z0-9._-]{0,63}"
+            "project slug must match [A-Za-z0-9_\\u4e00-\\u9fff][A-Za-z0-9._-\\u4e00-\\u9fff]{0,63}"
         )
     return raw
 
@@ -67,6 +68,9 @@ def safe_vault_join(root: Path, *parts: str) -> Path:
 
 
 def project_dir(vault_root: Path, project: str) -> Path:
-    """Return 10_projects/<slug> after validating the slug and containment."""
+    """Return project directory under 10_projects/ or 10_项目工作区/ after validating slug."""
     slug = validate_project_slug(project)
+    chinese_dir = safe_vault_join(vault_root, "10_项目工作区", slug)
+    if chinese_dir.is_dir():
+        return chinese_dir
     return safe_vault_join(vault_root, "10_projects", slug)
