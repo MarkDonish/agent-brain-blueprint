@@ -17,16 +17,18 @@ def _fts_query(raw: str) -> str:
     """Build a robust FTS5 query supporting both ASCII terms and CJK character phrases."""
     tokens: list[str] = []
     for part in re.finditer(
-        r"([A-Za-z0-9_./-]+)|([\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]+)", raw
+        r"([A-Za-z0-9]+(?:[._/-][A-Za-z0-9]+)*)|([\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]+)", raw
     ):
         ascii_tok, cjk_tok = part.groups()
         if ascii_tok:
-            tokens.append(ascii_tok)
+            clean = ascii_tok.strip("._/-")
+            if clean:
+                tokens.append(f'"{clean}"')
         elif cjk_tok:
             spaced = " ".join(list(cjk_tok))
             tokens.append(f'"{spaced}"')
     if not tokens:
-        cleaned = raw.replace('"', " ").strip()
+        cleaned = re.sub(r'[^\w\u4e00-\u9fff]', ' ', raw).strip()
         return f'"{cleaned}"' if cleaned else '""'
     return " AND ".join(tokens)
 

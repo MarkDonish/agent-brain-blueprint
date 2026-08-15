@@ -231,11 +231,12 @@ state: active
             )
             rebuild_index(vault)
 
-            for q in ["中转部署", "公网IP", "试运营", "生产机", "暂缓购买域名"]:
+            for q in ["中转部署", "公网IP", "试运营", "生产机", "暂缓购买域名", "中转 - IP", "公网IP: 试运营", "“试运营”", "AND OR NOT"]:
                 res = search(vault, q, project="ai-relay")
                 self.assertTrue(res["ok"], f"query {q} failed: {res}")
-                self.assertGreaterEqual(res["hit_count"], 1, f"query {q} yielded 0 hits: {res}")
-                self.assertEqual(res["hits"][0]["title"], "中转部署与公网IP试运营决策")
+                if q != "AND OR NOT":
+                    self.assertGreaterEqual(res["hit_count"], 1, f"query {q} yielded 0 hits: {res}")
+                    self.assertEqual(res["hits"][0]["title"], "中转部署与公网IP试运营决策")
 
 
 if __name__ == "__main__":
