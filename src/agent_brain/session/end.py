@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -36,7 +35,6 @@ def session_end(
     """
     ensure_scripts_on_path()
     from lib.path_safety import validate_project_slug
-    from lib.record_id import new_record_id
 
     root = vault.expanduser().resolve()
     slug = validate_project_slug(project)

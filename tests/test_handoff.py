@@ -1,12 +1,21 @@
 from __future__ import annotations
 
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-from agent_brain.cli.claim_ops import acquire_claim
-from agent_brain.handoff.engine import create_handoff
-from agent_brain.session.end import session_end
+# Allow running via bare `python3 -m unittest discover -s tests` without
+# relying on the Makefile's PYTHONPATH export.
+ROOT = Path(__file__).resolve().parents[1]
+for entry in ("src", "scripts"):
+    path = str(ROOT / entry)
+    if path not in sys.path:
+        sys.path.insert(0, path)
+
+from agent_brain.cli.claim_ops import acquire_claim  # noqa: E402
+from agent_brain.handoff.engine import create_handoff  # noqa: E402
+from agent_brain.session.end import session_end  # noqa: E402
 
 
 class HandoffEngineTests(unittest.TestCase):

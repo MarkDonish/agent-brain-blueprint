@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.9.2 - 2026-08-22
+
+Hardening round: match-level privacy allowlist, conflict-detection visibility, CI single-sourcing.
+
+- Privacy scanner: allowlisting is now **match-level** — only the specific risk
+  match whose text contains an allowlisted snippet is suppressed; leaks sharing
+  a line with a placeholder are still reported (with matched-text detail).
+- Privacy scanner: remove the hardcoded snippet set duplicated from
+  `.privacy-allowlist`; the file is the single source of truth.
+- Session claims + claim gate: active claims with format errors now participate
+  in path-conflict detection instead of being silently excluded.
+- Makefile: `privacy-strict` target added and wired into `verify`; smoke targets
+  use `mktemp -d` instead of fixed `/tmp` paths with `rm -rf`.
+- CI: single-sourced through `make verify` (matrix 3.10/3.11) plus a dedicated
+  ruff lint job; CI no longer hand-copies Makefile steps.
+- Tests: bare `python3 -m unittest discover -s tests` works without the
+  Makefile `PYTHONPATH` export (`test_handoff` path bootstrap); new regression
+  tests for match-level allowlist, strict-mode exit codes, errored-claim
+  conflicts, doctor checks, and an AGENTS.md copy-drift guard
+  (`tests/test_agents_sync.py`).
+- Add `SECURITY.md`; add `[tool.ruff]` config (dev-only, runtime stays stdlib-zero).
+
 ## 0.9.1 - 2026-08-15
 
 Intelligent Session Handoff Engine + dual vault layout awareness + MCP handoff tool.

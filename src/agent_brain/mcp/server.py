@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import io
 import json
-import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -539,8 +538,8 @@ def run_mcp_server(default_vault: Path | None = None) -> int:
             if line.lower().startswith("content-length:"):
                 length_part = line.split(":", 1)[1].strip()
                 length = int(length_part)
-                # consume empty separator line
-                sep = reader.readline()
+                # consume empty separator line (framing requires reading it)
+                reader.readline()
                 body = reader.read(length)
                 message = json.loads(body)
             else:

@@ -25,7 +25,7 @@ class RetrievalTests(unittest.TestCase):
     def test_rebuild_and_search_demo(self) -> None:
         sys.path.insert(0, str(SRC))
         sys.path.insert(0, str(SCRIPTS))
-        from agent_brain.retrieval.index import default_index_path, rebuild_index
+        from agent_brain.retrieval.index import rebuild_index
         from agent_brain.retrieval.query import search
 
         with tempfile.TemporaryDirectory() as directory:

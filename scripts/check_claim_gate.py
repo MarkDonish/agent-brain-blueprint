@@ -50,7 +50,9 @@ def _run_gate(
         for item in invalid
     ]
 
-    active = [item for item in results if item["active"] and not item["errors"]]
+    # Active claims with format errors still occupy their planned paths, so
+    # they participate in conflict detection (and are reported as invalid).
+    active = [item for item in results if item["active"]]
     if session_id:
         active_for_conflict = [
             item for item in active if str(item.get("session_id") or "") != session_id
