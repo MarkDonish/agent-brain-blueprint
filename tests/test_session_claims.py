@@ -258,6 +258,59 @@ class ClaimTests(unittest.TestCase):
             self.assertTrue(payload["allowed"])
             self.assertGreaterEqual(payload["invalid_claim_count"], 1)
 
+    def _write_pair_with_broken_active_claim(self, root: Path) -> None:
+        claims = root / "40_handoffs" / "session_claims"
+        claims.mkdir(parents=True)
+        (claims / "a.md").write_text(
+            record(["10_projects/example/file.md"], session="a"), encoding="utf-8"
+        )
+        # Active (status/closeout/expiry fine) but missing a required field.
+        broken = record(["10_projects/example/file.md"], session="b").replace(
+            "next_action: Continue\n", ""
+        )
+        (claims / "b.md").write_text(broken, encoding="utf-8")
+
+    def test_errored_active_claim_still_reports_conflict(self) -> None:
+        # A format-broken but active claim must not hide its path overlap.
+        import io
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_pair_with_broken_active_claim(root)
+            buf = io.StringIO()
+            old = sys.argv
+            try:
+                sys.argv = ["check_session_claims.py", str(root)]
+                from contextlib import redirect_stdout
+
+                with redirect_stdout(buf):
+                    code = CLAIMS.main()
+            finally:
+                sys.argv = old
+            self.assertEqual(code, 2)
+            payload = json.loads(buf.getvalue())
+            row = next(item for item in payload["failures"] if item["path"].endswith("b.md"))
+            self.assertTrue(any("next_action: missing required field" in e for e in row["errors"]))
+            self.assertTrue(any("conflicts with" in e for e in row["errors"]))
+
+    def test_gate_conflicts_with_errored_active_claim(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_pair_with_broken_active_claim(root)
+            code, payload = run_gate(
+                [
+                    "check_claim_gate.py",
+                    str(root),
+                    "--session-id",
+                    "a",
+                    "--path",
+                    "10_projects/example/file.md",
+                ]
+            )
+            self.assertEqual(code, 2)
+            self.assertFalse(payload["allowed"])
+            self.assertGreaterEqual(payload["conflict_count"], 1)
+
     def test_expires_at_must_be_after_claimed_at(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

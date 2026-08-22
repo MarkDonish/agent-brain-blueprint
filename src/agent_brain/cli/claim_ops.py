@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any
 
 from agent_brain.paths import ensure_scripts_on_path, repo_root
 
@@ -126,9 +127,6 @@ def close_claim(vault: Path, claim_rel_or_abs: str, *, summary: str = "Closed vi
         raise ValueError("claim file has no frontmatter")
 
     # Minimal field updates without a full YAML rewriter.
-    replacements = {
-        "status:": None,  # handled below
-    }
     lines = text.splitlines()
     out: list[str] = []
     in_fm = False
