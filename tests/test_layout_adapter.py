@@ -1,19 +1,25 @@
 from __future__ import annotations
 
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-from agent_brain.context.builder import build_context
-from agent_brain.cli.claim_ops import acquire_claim
-from agent_brain.cli.project_ops import add_project
-from agent_brain.memory.promote import promote_memory
-from agent_brain.memory.review import list_review_due
-from agent_brain.retrieval.scan import scan_records
-from agent_brain.session.start import session_start
-from agent_brain.cli.project_ops import list_projects
+ROOT = Path(__file__).resolve().parents[1]
+for entry in ("src", "scripts"):
+    path = str(ROOT / entry)
+    if path not in sys.path:
+        sys.path.insert(0, path)
 
-from scripts.lib.vault_layout import LayoutDetectionError, detect_layout
+from agent_brain.context.builder import build_context  # noqa: E402
+from agent_brain.cli.claim_ops import acquire_claim  # noqa: E402
+from agent_brain.cli.project_ops import add_project, list_projects  # noqa: E402
+from agent_brain.layout import LayoutDetectionError, detect_layout  # noqa: E402
+from agent_brain.memory.promote import promote_memory  # noqa: E402
+from agent_brain.memory.review import list_review_due  # noqa: E402
+from agent_brain.retrieval.scan import scan_records  # noqa: E402
+from agent_brain.session.start import session_start  # noqa: E402
+
 
 
 def make_zh_vault(root: Path) -> Path:
