@@ -46,7 +46,12 @@ decisions, summaries, and source references.
 ## Retrieval layer
 
 Search systems may nominate candidates. A hit is never authority to act. Indexes
-should be rebuildable and excluded from Git.
+should be rebuildable and excluded from Git. Retrieval publishes immutable
+generations below `50_retrieval/indexes/generations/` and switches
+`current.json` atomically after manifest, SQLite, source-coverage, and graph
+checks pass. `status`/`check` are read-only; `refresh` is explicit and keeps
+the previous pointer when a build fails. The same SQLite contains deterministic
+`nodes`/`relations` with evidence and source paths; Markdown remains truth.
 
 ## Governance layer
 

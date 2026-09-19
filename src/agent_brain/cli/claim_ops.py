@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from agent_brain.layout import detect_layout
 from agent_brain.paths import ensure_scripts_on_path, repo_root
 
 
@@ -29,6 +30,7 @@ def acquire_claim(
     root = vault.expanduser().resolve()
     if not root.is_dir():
         raise FileNotFoundError(f"vault not found: {root}")
+    layout = detect_layout(root)
     if not session_id.strip():
         raise ValueError("session_id is required")
     if not task.strip():
@@ -48,6 +50,7 @@ def acquire_claim(
     record_id = new_record_id("clm")
 
     lines = "\n".join(f"  - {p}" for p in safe_paths)
+    claim_rel_hint = "/".join((layout.claims_root_rel, filename or "CLAIM.md"))
     body = f"""---
 memory_type: session-handoff
 record_type: claim
@@ -82,11 +85,11 @@ Created by `agent-brain claim acquire`. This is **not** a distributed lock.
 Dry-run fields are self-attested. Re-run gate before contested writes:
 
 ```bash
-agent-brain claim gate {root} --claim 40_handoffs/session_claims/{filename or "CLAIM.md"}
+agent-brain claim gate {root} --claim {claim_rel_hint}
 ```
 """
 
-    claims_dir = root / "40_handoffs" / "session_claims"
+    claims_dir = layout.path(root, "claims_root")
     claims_dir.mkdir(parents=True, exist_ok=True)
     if filename is None:
         stamp = claimed_at.strftime("%Y%m%d-%H%M%S")
@@ -94,7 +97,7 @@ agent-brain claim gate {root} --claim 40_handoffs/session_claims/{filename or "C
         filename = f"{stamp}-{safe_sid}.md"
     if "/" in filename or "\\" in filename or filename in {".", ".."}:
         raise PathSafetyError(f"unsafe claim filename: {filename}")
-    path = safe_vault_join(root, "40_handoffs", "session_claims", filename)
+    path = safe_vault_join(root, *layout.claims_root_rel.split("/"), filename)
     if path.exists():
         raise FileExistsError(f"claim already exists: {path}")
     path.write_text(body, encoding="utf-8")
@@ -243,7 +246,8 @@ def prune_claims(vault: Path, *, dry_run: bool = False) -> list[dict[str, Any]]:
     from lib.frontmatter import parse_frontmatter
 
     root = vault.expanduser().resolve()
-    claims_dir = root / "40_handoffs" / "session_claims"
+    layout = detect_layout(root)
+    claims_dir = layout.path(root, "claims_root")
     if not claims_dir.is_dir():
         return []
 
@@ -282,4 +286,3 @@ def prune_claims(vault: Path, *, dry_run: bool = False) -> list[dict[str, Any]]:
 
 def template_path() -> Path:
     return repo_root() / "templates" / "session_claim.md"
-

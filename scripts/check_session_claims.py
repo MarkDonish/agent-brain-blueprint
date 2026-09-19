@@ -16,6 +16,7 @@ if str(SCRIPT_DIR) not in sys.path:
 
 from lib.frontmatter import parse_frontmatter
 from lib.path_safety import safe_relative_path
+from lib.vault_layout import VaultLayout, VaultLayoutError, detect_layout
 from lib.schema import (
     ValidationIssue,
     frontmatter_errors_to_issues,
@@ -44,6 +45,7 @@ def claim_result(
     *,
     now: datetime | None = None,
     fail_on_expired: bool = False,
+    layout: VaultLayout | None = None,
 ) -> dict[str, object]:
     result: dict[str, object] = {
         "path": str(path),
@@ -63,7 +65,18 @@ def claim_result(
 
     parsed = parse_frontmatter(text)
     issues = frontmatter_errors_to_issues(parsed.errors)
-    issues.extend(validate_against_schema(parsed.data, load_schema("session_claim"), enums=load_enums()))
+    issues.extend(
+        validate_against_schema(
+            parsed.data,
+            load_schema("session_claim"),
+            enums=load_enums(),
+            relaxed_enum_fields=(
+                layout.relaxed_enum_fields("session_claim")
+                if layout is not None
+                else frozenset()
+            ),
+        )
+    )
     data = parsed.data
 
     paths: list[str] = []
@@ -134,12 +147,38 @@ def collect_claim_paths(root: Path, claims_dir: Path) -> list[Path]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("root", type=Path)
-    parser.add_argument("--claims-dir", type=Path, default=Path("40_handoffs/session_claims"))
+    parser.add_argument(
+        "--claims-dir",
+        type=Path,
+        default=None,
+        help="override the layout-selected claims directory",
+    )
     parser.add_argument("--fail-on-expired", action="store_true")
     parser.add_argument("--now", default=None, help="ISO timestamp override for tests")
     args = parser.parse_args()
     root = args.root.resolve()
-    claims_dir = args.claims_dir if args.claims_dir.is_absolute() else root / args.claims_dir
+    layout_id: str | None = None
+    if args.claims_dir is None:
+        try:
+            layout = detect_layout(root)
+            layout_id = layout.layout_id
+            claims_dir = layout.path(root, "claims_root")
+        except VaultLayoutError as exc:
+            print(
+                json.dumps(
+                    {
+                        "read_only": True,
+                        "layout_id": None,
+                        "layout": None,
+                        "failure_count": 1,
+                        "failures": [{"path": "<layout>", "errors": [str(exc)]}],
+                    },
+                    indent=2,
+                )
+            )
+            return 2
+    else:
+        claims_dir = args.claims_dir if args.claims_dir.is_absolute() else root / args.claims_dir
     try:
         claims_dir.resolve(strict=False).relative_to(root)
     except (OSError, RuntimeError, ValueError):
@@ -157,7 +196,13 @@ def main() -> int:
 
     now = parse_expires_at(args.now) if args.now else None
     results = [
-        claim_result(root, path, now=now, fail_on_expired=args.fail_on_expired)
+        claim_result(
+            root,
+            path,
+            now=now,
+            fail_on_expired=args.fail_on_expired,
+            layout=layout if args.claims_dir is None else None,
+        )
         for path in collect_claim_paths(root, claims_dir)
     ]
     active = [item for item in results if item["active"] and not item["errors"]]
@@ -186,6 +231,8 @@ def main() -> int:
         json.dumps(
             {
                 "read_only": True,
+                "layout_id": layout_id,
+                "layout": layout_id,
                 "checked_file_count": len(results),
                 "active_claim_count": len([item for item in results if item["active"] and not item["errors"]]),
                 "failure_count": len(failures),

@@ -52,6 +52,9 @@ next_action: Continue
 
 
 def run_gate(argv: list[str]) -> tuple[int, dict]:
+    # Gate tests model an English vault and need one core marker now that
+    # layout detection intentionally ignores auxiliary claim-directory names.
+    (Path(argv[1]) / "10_projects").mkdir(parents=True, exist_ok=True)
     buf = io.StringIO()
     old = sys.argv
     try:
@@ -86,6 +89,22 @@ class ClaimTests(unittest.TestCase):
             claim.write_text(record(["10_projects/example/file.md"]), encoding="utf-8")
             result = CLAIMS.claim_result(root, claim)
             self.assertEqual(result["errors"], [])
+            self.assertTrue(result["active"])
+
+    def test_chinese_layout_accepts_localized_optional_claim_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "00_入口").mkdir()
+            (root / "00_入口/06_Agent会话加载卡.md").write_text("# card\n", encoding="utf-8")
+            (root / "10_项目工作区").mkdir()
+            claim = root / "claim.md"
+            claim.write_text(
+                record(["10_项目工作区/示例应用/00_项目总览.md"])
+                .replace("---\n", "---\nmemory_type: 会话交接\nconfidence: 已验证\n", 1),
+                encoding="utf-8",
+            )
+            result = CLAIMS.claim_result(root, claim, layout=CLAIMS.detect_layout(root))
+            self.assertEqual(result["errors"], [], result)
             self.assertTrue(result["active"])
 
     def test_rejects_absolute_planned_path(self) -> None:
@@ -131,6 +150,7 @@ class ClaimTests(unittest.TestCase):
     def test_gate_detects_conflict(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            (root / "10_projects").mkdir()
             claims = root / "40_handoffs" / "session_claims"
             claims.mkdir(parents=True)
             (claims / "a.md").write_text(
@@ -289,6 +309,7 @@ class ClaimTests(unittest.TestCase):
     def test_duplicate_active_session_id(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            (root / "10_projects").mkdir()
             claims = root / "40_handoffs" / "session_claims"
             claims.mkdir(parents=True)
             body = record(["10_projects/example/a.md"], session="same-session")

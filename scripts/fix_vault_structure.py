@@ -13,14 +13,15 @@ if str(SCRIPT_DIR) not in sys.path:
 
 from lib.path_safety import PathSafetyError, project_dir, validate_project_slug
 from lib.vault_format import default_manifest
-from lib.vault_layout import required_entries
+from lib.vault_layout import VaultLayoutError, detect_layout, required_entries
 import json
 
 
 def missing_entries(root: Path, project: str | None = None) -> list[tuple[Path, str]]:
     """Return list of (absolute path, kind) that are missing or wrong type."""
+    layout = detect_layout(root, strict=True)
     missing: list[tuple[Path, str]] = []
-    for entry in required_entries(project=False):
+    for entry in required_entries(project=False, layout=layout):
         rel = str(entry["path"])
         kind = str(entry["kind"])
         path = root / rel
@@ -32,8 +33,8 @@ def missing_entries(root: Path, project: str | None = None) -> list[tuple[Path, 
             missing.append((path, kind))
     if project:
         slug = validate_project_slug(project)
-        base = project_dir(root, slug)
-        for entry in required_entries(project=True):
+        base = project_dir(root, slug, layout=layout)
+        for entry in required_entries(project=True, layout=layout):
             rel = str(entry["path"])
             kind = str(entry["kind"])
             path = base / rel
@@ -82,7 +83,7 @@ def main() -> int:
     root = args.root.expanduser().resolve()
     try:
         missing = missing_entries(root, args.project)
-    except PathSafetyError as exc:
+    except (PathSafetyError, VaultLayoutError) as exc:
         parser.error(str(exc))
     print(f"vault: {root}")
     print(f"missing: {len(missing)}")
@@ -91,7 +92,7 @@ def main() -> int:
     if args.apply:
         try:
             apply(missing)
-        except PathSafetyError as exc:
+        except (PathSafetyError, VaultLayoutError) as exc:
             parser.error(str(exc))
         print("applied")
     else:

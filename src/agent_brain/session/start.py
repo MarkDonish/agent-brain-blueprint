@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from agent_brain.context.builder import build_context
+from agent_brain.layout import detect_layout
 from agent_brain.paths import ensure_scripts_on_path
 
 
@@ -31,9 +32,10 @@ def session_start(
     if not root.is_dir():
         raise FileNotFoundError(f"vault not found: {root}")
 
-    overview = f"10_projects/{slug}/PROJECT_OVERVIEW.md"
-    work = f"10_projects/{slug}/10_current_work/INDEX.md"
-    card = "00_entrypoint/SESSION_START_CARD.md"
+    layout = detect_layout(root)
+    overview = layout.project_relative_path(slug, "overview")
+    work = layout.project_index_relative_path(slug, "current_work")
+    card = layout.entrypoint_rel
 
     context_doc = None
     context_meta = None

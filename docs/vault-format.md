@@ -45,6 +45,17 @@ schemas/vault_layout.json
 
 `check_vault_structure.py`, `fix_vault_structure.py`, and bootstrap consume this file. Do not reintroduce parallel `REQUIRED_PATHS` lists.
 
+The schema currently defines two compatible vocabularies:
+
+| Layout ID | Project root | Entrypoint | Claim root |
+| --- | --- | --- | --- |
+| `blueprint-en-v1` | `10_projects/` | `00_entrypoint/SESSION_START_CARD.md` | `40_handoffs/session_claims/` |
+| `agent-brain-zh-v1` | `10_项目工作区/` | `00_入口/06_Agent会话加载卡.md` | `40_跨Agent交接/会话认领/` |
+
+The read-only layout adapter selects exactly one layout from explicit core
+markers. A vault with no marker or with English and Chinese markers together
+fails closed with a diagnostic error; callers must not guess a vocabulary.
+
 ## Stable record identity
 
 Optional frontmatter field:

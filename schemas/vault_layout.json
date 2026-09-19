@@ -1,6 +1,140 @@
 {
   "format_version": 1,
   "description": "Single source of truth for vault skeleton paths (kind: file|directory).",
+  "default_layout": "blueprint-en-v1",
+  "layouts": {
+    "blueprint-en-v1": {
+      "description": "Public English blueprint layout.",
+      "project_activation": "directory",
+      "markers": [
+        {"path": "AGENTS.md", "kind": "file"},
+        {"path": ".agent-brain", "kind": "directory"},
+        {"path": "00_entrypoint/SESSION_START_CARD.md", "kind": "file"},
+        {"path": "10_projects", "kind": "directory"},
+        {"path": "40_handoffs/session_claims", "kind": "directory"}
+      ],
+      "slots": {
+        "entrypoint": "00_entrypoint/SESSION_START_CARD.md",
+        "projects_root": "10_projects",
+        "global_decisions": "30_global_decisions",
+        "claims_root": "40_handoffs/session_claims",
+        "retrieval_root": "50_retrieval",
+        "overview": "PROJECT_OVERVIEW.md",
+        "current_work": "10_current_work",
+        "handoffs": "20_handoffs",
+        "docs": "30_docs",
+        "validation": "40_validation",
+        "decisions": "50_decisions",
+        "summaries": "60_summaries",
+        "raw_sources": "90_raw_sources"
+      },
+      "index_files": {
+        "current_work": "INDEX.md",
+        "handoffs": "INDEX.md",
+        "docs": "INDEX.md",
+        "validation": "INDEX.md",
+        "decisions": "INDEX.md",
+        "summaries": "INDEX.md",
+        "raw_sources": "INDEX.md"
+      },
+      "paths": [
+        {"path": "AGENTS.md", "kind": "file", "required": true},
+        {"path": ".agent-brain", "kind": "directory", "required": true},
+        {"path": ".agent-brain/manifest.json", "kind": "file", "required": true},
+        {"path": "00_entrypoint/SESSION_START_CARD.md", "kind": "file", "required": true},
+        {"path": "10_projects", "kind": "directory", "required": true},
+        {"path": "20_agent_catalog", "kind": "directory", "required": true},
+        {"path": "30_global_decisions", "kind": "directory", "required": true},
+        {"path": "40_handoffs/session_claims", "kind": "directory", "required": true},
+        {"path": "40_handoffs/session_claims/.gitkeep", "kind": "file", "required": true},
+        {"path": "50_retrieval", "kind": "directory", "required": true},
+        {"path": "60_templates", "kind": "directory", "required": true},
+        {"path": "70_inbox", "kind": "directory", "required": true},
+        {"path": "80_sensitive_isolation", "kind": "directory", "required": true},
+        {"path": "90_archive", "kind": "directory", "required": true}
+      ],
+      "project_paths": [
+        {"path": "PROJECT_OVERVIEW.md", "kind": "file", "required": true},
+        {"path": "10_current_work", "kind": "directory", "required": true},
+        {"path": "20_handoffs", "kind": "directory", "required": true},
+        {"path": "30_docs", "kind": "directory", "required": true},
+        {"path": "40_validation", "kind": "directory", "required": true},
+        {"path": "50_decisions", "kind": "directory", "required": true},
+        {"path": "60_summaries", "kind": "directory", "required": true},
+        {"path": "90_raw_sources", "kind": "directory", "required": true}
+      ]
+    },
+    "agent-brain-zh-v1": {
+      "description": "Local Chinese Agent-Brain layout.",
+      "project_activation": "overview",
+      "localized_enum_fields": {
+        "memory_record": [
+          "memory_type",
+          "confidence",
+          "freshness",
+          "scope",
+          "risk_boundary",
+          "record_type",
+          "knowledge_type",
+          "state"
+        ],
+        "validation": ["memory_type", "record_type", "state"],
+        "handoff": ["memory_type", "record_type", "state"],
+        "session_claim": ["memory_type", "confidence", "record_type"]
+      },
+      "markers": [
+        {"path": "00_入口/06_Agent会话加载卡.md", "kind": "file"},
+        {"path": "10_项目工作区", "kind": "directory"},
+        {"path": "40_跨Agent交接/会话认领", "kind": "directory"}
+      ],
+      "slots": {
+        "entrypoint": "00_入口/06_Agent会话加载卡.md",
+        "projects_root": "10_项目工作区",
+        "global_decisions": "30_全局事实与决策",
+        "claims_root": "40_跨Agent交接/会话认领",
+        "retrieval_root": "50_retrieval",
+        "overview": "00_项目总览.md",
+        "current_work": "10_当前任务",
+        "handoffs": "20_交接记录",
+        "docs": "30_开发文档",
+        "validation": "40_验证记录",
+        "decisions": "50_事实与决策",
+        "summaries": "60_会话摘要",
+        "raw_sources": "90_原始材料索引"
+      },
+      "index_files": {
+        "current_work": "00_任务索引.md",
+        "handoffs": "00_交接索引.md",
+        "docs": "00_文档索引.md",
+        "validation": "00_验证记录索引.md",
+        "decisions": "00_事实决策索引.md",
+        "summaries": "00_会话摘要索引.md",
+        "raw_sources": "00_原始材料索引.md"
+      },
+      "paths": [
+        {"path": "00_入口/06_Agent会话加载卡.md", "kind": "file", "required": true},
+        {"path": "10_项目工作区", "kind": "directory", "required": true},
+        {"path": "20_Agent配置与记忆", "kind": "directory", "required": true},
+        {"path": "30_全局事实与决策", "kind": "directory", "required": true},
+        {"path": "40_跨Agent交接/会话认领", "kind": "directory", "required": true},
+        {"path": "50_检索通道", "kind": "directory", "required": true},
+        {"path": "60_模板", "kind": "directory", "required": true},
+        {"path": "70_原始材料收件箱", "kind": "directory", "required": true},
+        {"path": "80_敏感隔离_不要放进来", "kind": "directory", "required": true},
+        {"path": "90_归档", "kind": "directory", "required": true}
+      ],
+      "project_paths": [
+        {"path": "00_项目总览.md", "kind": "file", "required": true},
+        {"path": "10_当前任务", "kind": "directory", "required": true},
+        {"path": "20_交接记录", "kind": "directory", "required": true},
+        {"path": "30_开发文档", "kind": "directory", "required": true},
+        {"path": "40_验证记录", "kind": "directory", "required": true},
+        {"path": "50_事实与决策", "kind": "directory", "required": true},
+        {"path": "60_会话摘要", "kind": "directory", "required": true},
+        {"path": "90_原始材料索引", "kind": "directory", "required": true}
+      ]
+    }
+  },
   "paths": [
     {"path": "AGENTS.md", "kind": "file", "required": true},
     {"path": ".agent-brain", "kind": "directory", "required": true},

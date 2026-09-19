@@ -7,6 +7,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from agent_brain.layout import detect_layout
 from agent_brain.paths import ensure_scripts_on_path
 
 PROMOTE_ALLOWED_MEMORY_TYPES = frozenset(
@@ -55,13 +56,14 @@ def promote_memory(
     Does not promote from free-form chat dumps — caller must supply structured fields.
     """
     ensure_scripts_on_path()
-    from lib.path_safety import PathSafetyError, project_dir, validate_project_slug
+    from lib.path_safety import PathSafetyError, validate_project_slug
     from lib.record_id import new_record_id
     from lib.schema import load_enums, load_schema, validate_against_schema
 
     root = vault.expanduser().resolve()
     if not root.is_dir():
         raise FileNotFoundError(f"vault not found: {root}")
+    layout = detect_layout(root)
 
     title = title.strip()
     conclusion = conclusion.strip()
@@ -80,14 +82,14 @@ def promote_memory(
             raise ValueError(f"refusing promote: content looks like {hint!r}")
 
     if global_decision:
-        dest_dir = root / "30_global_decisions"
+        dest_dir = layout.path(root, "global_decisions")
         scope_val = scope or "global"
         project_slug = None
     else:
         if not project:
             raise ValueError("project is required unless --global")
         project_slug = validate_project_slug(project)
-        dest_dir = project_dir(root, project_slug) / "50_decisions"
+        dest_dir = layout.project_path(root, project_slug, "decisions")
         scope_val = scope or "project"
 
     record_id = new_record_id("mem")

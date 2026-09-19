@@ -1,4 +1,4 @@
-# agent-brain CLI (0.9.1)
+# agent-brain CLI (0.10.0)
 
 Markdown remains the **canonical** vault data. The CLI is the **tooling runtime**.
 
@@ -47,9 +47,13 @@ python3 scripts/doctor.py ./my-vault
 | `agent-brain handoff create ...` | Generate structured session handoff + auto-close claims |
 | `agent-brain record validate [vault]` | Governance check |
 | `agent-brain record id [--prefix mem]` | Generate ULID `record_id` |
-| `agent-brain retrieve rebuild [vault]` | Rebuild derived FTS index (CJK optimized) |
-| `agent-brain retrieve search [vault] QUERY` | FTS + filters (candidates only) |
-| `agent-brain context build [vault] --project P` | Minimal context pack |
+| `agent-brain retrieve rebuild [vault]` | Publish a complete immutable derived generation |
+| `agent-brain retrieve status [vault]` | Read-only live source coverage/current generation status |
+| `agent-brain retrieve check [vault]` | Read-only pointer, manifest, SQLite, and coverage validation |
+| `agent-brain retrieve refresh [vault]` | Explicit changed-only comparison and refresh (no-op when unchanged) |
+| `agent-brain retrieve search [vault] QUERY` | FTS + filters + scout/verify/auditor detail and cursor |
+| `agent-brain graph query [vault]` | Query derived nodes/relations with stable cursor |
+| `agent-brain context build [vault] --project P` | Profiled, token-budgeted project context pack |
 | `agent-brain memory promote\|supersede\|review` | Explicit durable memory lifecycle |
 | `agent-brain session start\|end` | Host session adapters (Codex/Claude/Antigravity) |
 | `agent-brain mcp [vault]` | Zero-dependency stdio Model Context Protocol (MCP) server |

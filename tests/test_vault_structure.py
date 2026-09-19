@@ -32,6 +32,7 @@ class StructureTests(unittest.TestCase):
     def test_gitkeep_created_as_file(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            (root / "10_projects").mkdir()
             missing = FIX.missing_entries(root)
             FIX.apply(missing)
             gitkeep = root / "40_handoffs" / "session_claims" / ".gitkeep"
@@ -47,11 +48,40 @@ class StructureTests(unittest.TestCase):
             ]
             self.assertEqual(gitkeep_failures, [])
 
+    def test_fix_uses_detected_chinese_layout(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "00_入口").mkdir()
+            (root / "00_入口/06_Agent会话加载卡.md").write_text("# card\n", encoding="utf-8")
+            (root / "10_项目工作区").mkdir()
+            missing = FIX.missing_entries(root)
+            paths = {path.relative_to(root).as_posix() for path, _ in missing}
+            self.assertIn("30_全局事实与决策", paths)
+            self.assertNotIn("30_global_decisions", paths)
+
+    def test_chinese_directory_without_overview_is_candidate_not_active_project(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "00_入口").mkdir()
+            (root / "00_入口/06_Agent会话加载卡.md").write_text("# card\n", encoding="utf-8")
+            (root / "10_项目工作区/候选资料").mkdir(parents=True)
+            report = STRUCTURE.check_structure(root)
+            candidate_failures = [
+                item for item in report["failures"] if "候选资料" in str(item.get("path"))
+            ]
+            self.assertEqual(candidate_failures, [])
+            self.assertEqual(report["project_count"], 0)
+            self.assertEqual(report["candidate_project_count"], 1)
+            self.assertEqual(report["candidate_projects"], ["候选资料"])
+
     def test_required_file_cannot_be_directory(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             # Create AGENTS.md as a directory (wrong kind)
             (root / "AGENTS.md").mkdir(parents=True)
+            # Seed an English core marker so layout detection can report the
+            # actionable AGENTS.md type mismatch instead of unknown layout.
+            (root / "10_projects").mkdir()
             report = STRUCTURE.check_structure(root)
             self.assertTrue(
                 any(

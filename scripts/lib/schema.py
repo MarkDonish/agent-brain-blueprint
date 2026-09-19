@@ -64,6 +64,7 @@ def validate_against_schema(
     *,
     enums: dict[str, list[str]] | None = None,
     require_optional: bool = False,
+    relaxed_enum_fields: frozenset[str] = frozenset(),
 ) -> list[ValidationIssue]:
     enums = enums or load_enums()
     issues: list[ValidationIssue] = []
@@ -84,6 +85,8 @@ def validate_against_schema(
             if value not in (None, "") and not _is_datetime(str(value)):
                 issues.append(ValidationIssue(field, "expected ISO-8601 datetime"))
         elif field_type == "enum":
+            if field in relaxed_enum_fields:
+                continue
             enum_name = str(spec.get("enum", ""))
             allowed = enums.get(enum_name, [])
             if value not in (None, "") and str(value) not in allowed:

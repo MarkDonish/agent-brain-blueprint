@@ -2,10 +2,17 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 from pathlib import Path
 from typing import Any
 
+from agent_brain.layout import (
+    detect_layout,
+    layout_ignored_dir_names,
+    project_from_path,
+    record_type_from_path,
+)
 from agent_brain.paths import ensure_scripts_on_path
 
 SKIP_DIR_NAMES = {
@@ -21,22 +28,26 @@ SKIP_DIR_NAMES = {
     "node_modules",
 }
 
-# Paths that are operational indexes, not durable knowledge to rank highly.
-LOW_PRIORITY_GLOBS = (
-    "60_templates/",
-    "00_entrypoint/",
-    "20_agent_catalog/",
-    "50_retrieval/",
-    "70_inbox/",
-    "90_archive/",
-)
 
+def _blocked_dir_names(layout) -> set[str]:
+    """Return directory names that are outside the canonical retrieval plane.
+
+    The scanner historically skipped these directories silently.  Wave 2 keeps
+    them out of the index but exposes their Markdown files as ``blocked`` in
+    inventory reports so coverage can never be mistaken for whole-vault
+    coverage.
+    """
+
+    return SKIP_DIR_NAMES | layout_ignored_dir_names(layout)
 
 def _project_from_path(rel: str) -> str:
-    parts = rel.replace("\\", "/").split("/")
-    if len(parts) >= 2 and parts[0] == "10_projects":
-        return parts[1]
-    return ""
+    normalized = rel.replace("\\", "/")
+    parts = normalized.split("/")
+    # The layout-level ``10_projects/INDEX.md`` (and its Chinese counterpart)
+    # describes the project collection; it is not a project named INDEX.md.
+    if len(parts) == 2 and parts[1].lower() in {"index.md", "00_项目索引.md"}:
+        return ""
+    return project_from_path(rel)
 
 
 def _title_from(data: dict[str, Any], body: str, path: str) -> str:
@@ -52,40 +63,13 @@ def _title_from(data: dict[str, Any], body: str, path: str) -> str:
 
 
 def _record_type(data: dict[str, Any], rel: str) -> str:
-    if data.get("record_type"):
-        return str(data["record_type"])
-    mt = str(data.get("memory_type") or "")
-    mapping = {
-        "decision": "decision",
-        "validation": "validation",
-        "handoff": "handoff",
-        "session-handoff": "claim",
-        "task": "task",
-        "fact": "memory",
-        "lesson": "memory",
-        "workflow": "memory",
-        "evidence": "memory",
-    }
-    if mt in mapping:
-        return mapping[mt]
-    rel_n = rel.replace("\\", "/")
-    if "/50_decisions/" in rel_n:
-        return "decision"
-    if "/40_validation/" in rel_n:
-        return "validation"
-    if "/20_handoffs/" in rel_n:
-        return "handoff"
-    if "session_claims/" in rel_n:
-        return "claim"
-    if rel_n.endswith("PROJECT_OVERVIEW.md"):
-        return "summary"
-    if "/10_current_work/" in rel_n:
-        return "task"
-    return "memory"
+    return record_type_from_path(rel, data=data)
 
 
 def iter_markdown_files(vault: Path):
     vault = vault.resolve()
+    layout = detect_layout(vault)
+    skip_names = _blocked_dir_names(layout)
     for path in sorted(vault.rglob("*.md")):
         if not path.is_file():
             continue
@@ -93,9 +77,65 @@ def iter_markdown_files(vault: Path):
             rel = path.relative_to(vault)
         except ValueError:
             continue
-        if any(part in SKIP_DIR_NAMES for part in rel.parts):
+        if any(part in skip_names for part in rel.parts):
             continue
         yield path, str(rel).replace("\\", "/")
+
+
+def iter_markdown_inventory(vault: Path):
+    """Yield deterministic metadata for eligible and blocked Markdown files.
+
+    Inventory is deliberately independent of frontmatter parsing: source
+    coverage is about canonical files on disk, while ``scan_records`` is the
+    derived record representation.  Hashes are included so refresh detects a
+    content change even when a filesystem preserves a coarse mtime.
+    """
+
+    vault = vault.expanduser().resolve()
+    layout = detect_layout(vault)
+    blocked_names = _blocked_dir_names(layout)
+    for path in sorted(vault.rglob("*.md")):
+        if not path.is_file():
+            continue
+        try:
+            rel = path.relative_to(vault)
+        except ValueError:
+            continue
+        rel_s = str(rel).replace("\\", "/")
+        blocked_parts = [part for part in rel.parts if part in blocked_names]
+        try:
+            stat = path.stat()
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        except (OSError, UnicodeError):
+            # An unreadable source cannot be an eligible indexed record.  Keep
+            # it visible as blocked rather than silently dropping it.
+            blocked_parts = blocked_parts or ["unreadable"]
+            stat = None
+            digest = ""
+        yield {
+            "path": rel_s,
+            "size": int(stat.st_size) if stat else 0,
+            "mtime": float(stat.st_mtime) if stat else 0.0,
+            "mtime_ns": int(stat.st_mtime_ns) if stat else 0,
+            "fingerprint": digest,
+            "blocked": bool(blocked_parts),
+            "blocked_reason": ",".join(dict.fromkeys(blocked_parts)),
+        }
+
+
+def source_inventory(vault: Path) -> dict[str, Any]:
+    """Return eligible/blocked source inventory used by generation coverage."""
+
+    items = list(iter_markdown_inventory(vault))
+    eligible = [item for item in items if not item["blocked"]]
+    blocked = [item for item in items if item["blocked"]]
+    return {
+        "items": items,
+        "eligible": eligible,
+        "blocked": blocked,
+        "source_count": len(eligible),
+        "blocked_source_count": len(blocked),
+    }
 
 
 def scan_records(vault: Path) -> list[dict[str, Any]]:
@@ -118,12 +158,6 @@ def scan_records(vault: Path) -> list[dict[str, Any]]:
             data = {}
         else:
             body = parsed.body
-        # Skip pure directory stubs with almost no content
-        if path.name in {"README.md", "INDEX.md", ".gitkeep"} and len(body.strip()) < 40 and not data.get("title"):
-            # still index INDEX with some content
-            if path.name == "README.md" and len(body.strip()) < 80:
-                continue
-
         state = str(data.get("state") or "")
         freshness = str(data.get("freshness") or "")
         title = _title_from(data, body, rel)
@@ -143,6 +177,10 @@ def scan_records(vault: Path) -> list[dict[str, Any]]:
                 "risk_boundary": str(data.get("risk_boundary") or ""),
                 "updated_at": str(data.get("updated_at") or data.get("created_at") or ""),
                 "source_path": rel,
+                # Preserve parsed frontmatter for graph relation extraction.
+                # Callers should treat it as evidence, never as canonical
+                # truth without reopening ``source_path``.
+                "metadata": dict(data),
             }
         )
     return records
@@ -156,3 +194,9 @@ def is_active_for_context(rec: dict[str, Any]) -> bool:
     if freshness == "expired":
         return False
     return True
+
+
+# Descriptive aliases for callers that refer to the coverage input as an
+# inventory rather than a scanner.
+inventory = source_inventory
+scan_inventory = source_inventory

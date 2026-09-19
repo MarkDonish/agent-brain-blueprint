@@ -80,6 +80,9 @@ python -m agent_brain claim gate ../my-agent-brain \
 python -m agent_brain privacy .
 python -m agent_brain retrieve rebuild ../my-agent-brain
 python -m agent_brain retrieve search ../my-agent-brain "session claim" --project example-app
+python -m agent_brain retrieve status ../my-agent-brain
+python -m agent_brain retrieve refresh ../my-agent-brain
+python -m agent_brain graph query ../my-agent-brain --project example-app
 python -m agent_brain context build ../my-agent-brain --project example-app --task "next handoff" --max-tokens 8000
 
 # Legacy scripts still work
@@ -117,7 +120,10 @@ Add to your host configuration (e.g. `~/.gemini/config/mcp_config.json` or Claud
 }
 ```
 
-Exposes 9 standard tools: `agent_brain_search`, `agent_brain_context`, `agent_brain_doctor`, `agent_brain_claim_status`, `agent_brain_claim_gate`, `agent_brain_claim_acquire`, `agent_brain_claim_close`, `agent_brain_promote_memory`, `agent_brain_handoff_create`.
+Exposes standard read/write-scoped tools for search, context, doctor, claims,
+handoff/memory lifecycle, plus read-only retrieval status/check, explicit
+derived-index refresh, and graph query. Refresh writes only derived index files;
+Markdown remains canonical.
 
 ## Design principles
 
@@ -169,8 +175,9 @@ Details: [docs/session-claims-and-closeout.md](docs/session-claims-and-closeout.
 | `agent-brain privacy` | Pre-publish secret/path scan |
 | `agent-brain migrate` | Write format manifest |
 | `agent-brain record validate\|id` | Governance / ULID helper |
-| `agent-brain retrieve rebuild\|search` | Derived FTS5 index (CJK & multilingual optimized) |
-| `agent-brain context build` | Minimal project context pack |
+| `agent-brain retrieve rebuild\|status\|check\|refresh\|search` | Immutable derived generations, coverage checks, explicit refresh, and candidate search |
+| `agent-brain graph query` | Evidence-bearing derived work-fact graph with stable cursor |
+| `agent-brain context build` | Profiled, token-budgeted project context pack |
 | `agent-brain memory promote\|supersede\|review` | Explicit durable memory lifecycle |
 | `agent-brain session start\|end` | Host session start/end adapters |
 | `agent-brain mcp` | Zero-dependency stdio Model Context Protocol (MCP) server |

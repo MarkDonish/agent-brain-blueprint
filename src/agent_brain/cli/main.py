@@ -30,7 +30,8 @@ from agent_brain.memory.promote import promote_memory
 from agent_brain.memory.review import list_review_due
 from agent_brain.memory.supersede import supersede_memory
 from agent_brain.paths import ensure_scripts_on_path, repo_root
-from agent_brain.retrieval.index import rebuild_index
+from agent_brain.retrieval.graph import query_graph
+from agent_brain.retrieval.index import check_index, rebuild_index, refresh_index, status_index
 from agent_brain.retrieval.query import search
 from agent_brain.session.end import session_end
 from agent_brain.session.start import session_start
@@ -96,9 +97,13 @@ def _cmd_record_id(args: argparse.Namespace) -> int:
 
 
 def _cmd_project_list(args: argparse.Namespace) -> int:
-    projects = list_projects(Path(args.vault))
+    try:
+        projects = list_projects(Path(args.vault))
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
     if not projects:
-        print("(no projects under 10_projects/)")
+        print("(no projects under the selected vault layout)")
         return 0
     for name in projects:
         print(name)
@@ -233,6 +238,36 @@ def _cmd_retrieve_rebuild(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_retrieve_status(args: argparse.Namespace) -> int:
+    try:
+        report = status_index(Path(args.vault))
+    except Exception as exc:  # noqa: BLE001
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    print(json.dumps(report, ensure_ascii=False, indent=2))
+    return 0 if report.get("ok") else 2
+
+
+def _cmd_retrieve_check(args: argparse.Namespace) -> int:
+    try:
+        report = check_index(Path(args.vault))
+    except Exception as exc:  # noqa: BLE001
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    print(json.dumps(report, ensure_ascii=False, indent=2))
+    return 0 if report.get("passed", report.get("ok")) else 2
+
+
+def _cmd_retrieve_refresh(args: argparse.Namespace) -> int:
+    try:
+        report = refresh_index(Path(args.vault))
+    except Exception as exc:  # noqa: BLE001
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    print(json.dumps(report, ensure_ascii=False, indent=2))
+    return 0 if report.get("ok") else 2
+
+
 def _cmd_retrieve_search(args: argparse.Namespace) -> int:
     result = search(
         Path(args.vault),
@@ -245,8 +280,34 @@ def _cmd_retrieve_search(args: argparse.Namespace) -> int:
         risk_boundary=args.risk_boundary,
         include_inactive=args.include_inactive,
         limit=args.limit,
+        detail=args.detail,
+        cursor=args.cursor,
     )
     print(json.dumps(result, indent=2))
+    return 0 if result.get("ok") else 2
+
+
+def _cmd_graph_query(args: argparse.Namespace) -> int:
+    try:
+        from agent_brain.retrieval.index import default_index_path, current_generation
+
+        vault = Path(args.vault)
+        path = default_index_path(vault)
+        current = current_generation(vault)
+        generation = str(current.get("generation_id")) if current else "legacy"
+        result = query_graph(
+            path,
+            project=args.project,
+            node_type=args.node_type,
+            relation_type=args.relation_type,
+            limit=args.limit,
+            cursor=args.cursor,
+            generation_id=generation,
+        )
+    except Exception as exc:  # noqa: BLE001
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0 if result.get("ok") else 2
 
 
@@ -259,6 +320,7 @@ def _cmd_context_build(args: argparse.Namespace) -> int:
             max_tokens=args.max_tokens,
             rebuild_if_missing=not args.no_rebuild,
             fts_limit=args.fts_limit,
+            profile=args.profile,
         )
     except Exception as exc:  # noqa: BLE001
         print(f"error: {exc}", file=sys.stderr)
@@ -478,14 +540,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=_cmd_structure_fix)
 
     # project
-    proj = sub.add_parser("project", help="list or add projects under 10_projects/")
+    proj = sub.add_parser("project", help="list or add projects under the selected vault layout")
     proj_sub = proj.add_subparsers(dest="project_command", required=True)
     p = proj_sub.add_parser("list", help="list project folder names")
     p.add_argument("vault", nargs="?", type=Path, default=Path("."))
     p.set_defaults(func=_cmd_project_list)
     p = proj_sub.add_parser("add", help="create a project skeleton")
     p.add_argument("vault", nargs="?", type=Path, default=Path("."))
-    p.add_argument("--name", required=True, help="project slug under 10_projects/")
+    p.add_argument("--name", required=True, help="project name under the selected vault layout")
     p.set_defaults(func=_cmd_project_add)
 
     # claim
@@ -513,7 +575,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--path", action="append", dest="paths", default=[], required=True)
     p.add_argument("--claimed-by", default="agent-brain-cli")
     p.add_argument("--hours", type=int, default=8, help="claim TTL hours (default 8)")
-    p.add_argument("--filename", default=None, help="optional filename under session_claims/")
+    p.add_argument("--filename", default=None, help="optional filename under the selected claim root")
     p.set_defaults(func=_cmd_claim_acquire)
 
     p = claim_sub.add_parser("close", help="mark a claim closed (local file edit)")
@@ -552,9 +614,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="derived SQLite FTS5 retrieval (candidates only; reopen Markdown)",
     )
     ret_sub = ret.add_subparsers(dest="retrieve_command", required=True)
-    p = ret_sub.add_parser("rebuild", help="rebuild index under 50_retrieval/indexes/")
+    p = ret_sub.add_parser("rebuild", help="rebuild the derived retrieval index")
     p.add_argument("vault", nargs="?", type=Path, default=Path("."))
     p.set_defaults(func=_cmd_retrieve_rebuild)
+    p = ret_sub.add_parser("status", help="show current generation and live source coverage")
+    p.add_argument("vault", nargs="?", type=Path, default=Path("."))
+    p.set_defaults(func=_cmd_retrieve_status)
+    p = ret_sub.add_parser("check", help="validate current pointer, manifest, SQLite and coverage")
+    p.add_argument("vault", nargs="?", type=Path, default=Path("."))
+    p.set_defaults(func=_cmd_retrieve_check)
+    p = ret_sub.add_parser("refresh", help="refresh only when source fingerprints changed")
+    p.add_argument("vault", nargs="?", type=Path, default=Path("."))
+    p.set_defaults(func=_cmd_retrieve_refresh)
     p = ret_sub.add_parser("search", help="search index with hard filters + FTS")
     p.add_argument("vault", nargs="?", type=Path, default=Path("."))
     p.add_argument("query", help="free-text query")
@@ -566,7 +637,20 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--risk-boundary", default=None)
     p.add_argument("--include-inactive", action="store_true")
     p.add_argument("--limit", type=int, default=20)
+    p.add_argument("--detail", "--profile", dest="detail", default=None, help="scout|verify|auditor (compact/default/full aliases)")
+    p.add_argument("--cursor", default=None, help="opaque generation-bound page cursor")
     p.set_defaults(func=_cmd_retrieve_search)
+
+    graph = sub.add_parser("graph", help="query derived work-fact relations (reopen Markdown for truth)")
+    graph_sub = graph.add_subparsers(dest="graph_command", required=True)
+    p = graph_sub.add_parser("query", help="query graph nodes or relations")
+    p.add_argument("vault", nargs="?", type=Path, default=Path("."))
+    p.add_argument("--project", default=None)
+    p.add_argument("--node-type", default=None)
+    p.add_argument("--relation-type", default=None)
+    p.add_argument("--limit", type=int, default=20)
+    p.add_argument("--cursor", default=None)
+    p.set_defaults(func=_cmd_graph_query)
 
     # context builder
     ctx = sub.add_parser("context", help="build minimal sufficient project context pack")
@@ -577,6 +661,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--task", default="", help="task string used for FTS candidates")
     p.add_argument("--max-tokens", type=int, default=16000)
     p.add_argument("--fts-limit", type=int, default=5)
+    p.add_argument("--profile", "--detail", dest="profile", default="verify", help="scout|verify|auditor (compact/default/full aliases)")
     p.add_argument("--no-rebuild", action="store_true", help="do not auto-rebuild missing index")
     p.add_argument("--json", action="store_true", help="emit JSON instead of markdown pack")
     p.add_argument("--meta-only", action="store_true", help="with --json, omit document body")

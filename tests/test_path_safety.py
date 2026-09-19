@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -10,6 +11,7 @@ SPEC = importlib.util.spec_from_file_location("path_safety", SCRIPT)
 assert SPEC and SPEC.loader
 PS = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(PS)
+sys.path.insert(0, str(SCRIPT.parents[1]))
 
 
 class PathSafetyTests(unittest.TestCase):
@@ -41,6 +43,17 @@ class PathSafetyTests(unittest.TestCase):
             self.assertEqual(
                 PS.safe_relative_path(root, "10_projects/app/file.md"),
                 "10_projects/app/file.md",
+            )
+
+    def test_project_dir_uses_detected_chinese_layout(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "00_入口").mkdir()
+            (root / "00_入口/06_Agent会话加载卡.md").write_text("# card\n", encoding="utf-8")
+            (root / "10_项目工作区").mkdir()
+            self.assertEqual(
+                PS.project_dir(root, "示例应用"),
+                root.resolve() / "10_项目工作区" / "示例应用",
             )
 
 

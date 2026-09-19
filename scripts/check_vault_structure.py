@@ -11,7 +11,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from lib.vault_layout import required_entries
+from lib.vault_layout import VaultLayoutError, detect_layout
 
 
 def _check_entry(root: Path, rel: str, kind: str) -> list[str]:
@@ -38,7 +38,22 @@ def check_structure(root: Path) -> dict[str, object]:
     failures: list[dict[str, object]] = []
     checked = 0
 
-    for entry in required_entries(project=False):
+    try:
+        layout = detect_layout(root, strict=True)
+    except VaultLayoutError as exc:
+        # Layout detection is deliberately fail-closed.  Do not emit a long
+        # list of English-path failures for a Chinese vault (or vice versa).
+        return {
+            "read_only": True,
+            "layout_id": None,
+            "layout": None,
+            "checked_path_count": 0,
+            "project_count": 0,
+            "failure_count": 1,
+            "failures": [{"path": "<layout>", "errors": [str(exc)]}],
+        }
+
+    for entry in layout.required_entries(project=False):
         rel = str(entry["path"])
         kind = str(entry["kind"])
         checked += 1
@@ -47,11 +62,18 @@ def check_structure(root: Path) -> dict[str, object]:
             failures.append({"path": rel, "errors": errors})
 
     projects = []
-    projects_root = root / "10_projects"
+    candidate_projects: list[str] = []
+    projects_root = layout.path(root, "projects_root")
     if projects_root.is_dir():
         for project in sorted(path for path in projects_root.iterdir() if path.is_dir()):
+            if (
+                layout.project_activation == "overview"
+                and not (project / layout.relative_path("overview")).exists()
+            ):
+                candidate_projects.append(project.name)
+                continue
             project_missing: list[str] = []
-            for entry in required_entries(project=True):
+            for entry in layout.required_entries(project=True):
                 rel = str(entry["path"])
                 kind = str(entry["kind"])
                 checked += 1
@@ -62,15 +84,19 @@ def check_structure(root: Path) -> dict[str, object]:
             if project_missing:
                 failures.append(
                     {
-                        "path": f"10_projects/{project.name}",
+                        "path": f"{layout.projects_root_rel}/{project.name}",
                         "errors": project_missing,
                     }
                 )
 
     return {
         "read_only": True,
+        "layout_id": layout.layout_id,
+        "layout": layout.layout_id,
         "checked_path_count": checked,
         "project_count": len(projects),
+        "candidate_project_count": len(candidate_projects),
+        "candidate_projects": candidate_projects,
         "failure_count": len(failures),
         "failures": failures,
     }

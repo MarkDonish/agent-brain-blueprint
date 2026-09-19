@@ -19,9 +19,40 @@ SPEC.loader.exec_module(GOVERNANCE)
 
 
 class GovernanceTests(unittest.TestCase):
+    def test_chinese_layout_targets_use_selected_directories(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "00_入口").mkdir()
+            (root / "00_入口/06_Agent会话加载卡.md").write_text("# card\n", encoding="utf-8")
+            (root / "10_项目工作区").mkdir()
+            (root / "30_全局事实与决策").mkdir()
+            (root / "30_全局事实与决策/全局决策.md").write_text("# decision\n", encoding="utf-8")
+            project_decisions = root / "10_项目工作区" / "示例应用" / "50_事实与决策"
+            project_decisions.mkdir(parents=True)
+            (project_decisions / "项目决策.md").write_text("# decision\n", encoding="utf-8")
+            targets = list(GOVERNANCE.iter_targets(root, include_soft=False))
+            self.assertEqual(
+                [path.relative_to(root).as_posix() for path, _, _ in targets],
+                [
+                    "30_全局事实与决策/全局决策.md",
+                    "10_项目工作区/示例应用/50_事实与决策/项目决策.md",
+                ],
+            )
+
+    def test_chinese_directory_index_is_not_a_governed_record(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "00_入口").mkdir()
+            (root / "00_入口/06_Agent会话加载卡.md").write_text("# card\n", encoding="utf-8")
+            decisions = root / "10_项目工作区/示例应用/50_事实与决策"
+            decisions.mkdir(parents=True)
+            (decisions / "00_事实决策索引.md").write_text("# 索引\n", encoding="utf-8")
+            self.assertEqual(list(GOVERNANCE.iter_targets(root, include_soft=False)), [])
+
     def test_directory_readme_and_index_are_not_governed_records(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            (root / "10_projects").mkdir()
             decisions = root / "30_global_decisions"
             decisions.mkdir()
             (decisions / "README.md").write_text("# Directory guide\n", encoding="utf-8")
@@ -36,6 +67,7 @@ class GovernanceTests(unittest.TestCase):
     def test_decision_record_is_governed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            (root / "10_projects").mkdir()
             decisions = root / "30_global_decisions"
             decisions.mkdir()
             record = decisions / "decision.md"
@@ -48,6 +80,7 @@ class GovernanceTests(unittest.TestCase):
     def test_complete_decision_passes(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            (root / "10_projects").mkdir()
             decisions = root / "30_global_decisions"
             decisions.mkdir()
             record = decisions / "decision.md"
@@ -113,6 +146,61 @@ owner: demo-user
             result = GOVERNANCE.check_file(root, path, "validation", "soft")
             self.assertEqual(result["errors"], [])
             self.assertTrue(any("commands or evidence_ref" in w for w in result["warnings"]))
+
+    def test_chinese_layout_accepts_localized_governance_values(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "00_入口").mkdir()
+            (root / "00_入口/06_Agent会话加载卡.md").write_text("# card\n", encoding="utf-8")
+            (root / "10_项目工作区").mkdir()
+            decisions = root / "30_全局事实与决策"
+            decisions.mkdir()
+            record = decisions / "决策.md"
+            record.write_text(
+                """# 决策
+
+```yaml
+memory_type: 决策
+source: 本地事实
+confidence: 已验证
+freshness: 当前有效
+scope: 全局
+risk_boundary: 不得写入密钥
+next_review: 2026-12-01
+owner: Mark
+```
+""",
+                encoding="utf-8",
+            )
+            layout = GOVERNANCE.detect_layout(root)
+            result = GOVERNANCE.check_file(
+                root, record, "memory_record", "strict", layout=layout
+            )
+            self.assertEqual(result["errors"], [], result)
+
+    def test_chinese_layout_keeps_validation_status_strict(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "00_入口").mkdir()
+            (root / "00_入口/06_Agent会话加载卡.md").write_text("# card\n", encoding="utf-8")
+            (root / "10_项目工作区").mkdir()
+            path = root / "10_项目工作区/示例应用/40_验证记录/验证.md"
+            path.parent.mkdir(parents=True)
+            path.write_text(
+                """---
+memory_type: 验证
+status: 通过
+owner: Mark
+---
+# 验证
+""",
+                encoding="utf-8",
+            )
+            layout = GOVERNANCE.detect_layout(root)
+            result = GOVERNANCE.check_file(
+                root, path, "validation", "soft", layout=layout
+            )
+            self.assertTrue(any("invalid enum value" in error for error in result["errors"]))
 
 
 if __name__ == "__main__":

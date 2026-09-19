@@ -14,9 +14,18 @@ from agent_brain.cli.claim_ops import acquire_claim, close_claim
 from agent_brain.cli.runner import run_script_capture
 from agent_brain.context.builder import build_context
 from agent_brain.handoff.engine import create_handoff
+from agent_brain.layout import detect_layout
 from agent_brain.memory.promote import promote_memory
 from agent_brain.paths import ensure_scripts_on_path
-from agent_brain.retrieval.index import rebuild_index
+from agent_brain.retrieval.graph import query_graph
+from agent_brain.retrieval.index import (
+    check_index,
+    current_generation,
+    default_index_path,
+    rebuild_index,
+    refresh_index,
+    status_index,
+)
 from agent_brain.retrieval.query import search
 
 PROTOCOL_VERSION = "2024-11-05"
@@ -45,7 +54,7 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "agent_brain_search",
-        "description": "Search vault memories, decisions, handoffs, and tasks using derived SQLite FTS5 index. Results are candidates only.",
+        "description": "Search the derived SQLite FTS5 generation (scout/verify/auditor detail). Results are candidates only; reopen canonical Markdown. This tool does not refresh or write the vault.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -65,6 +74,20 @@ TOOL_DEFINITIONS = [
                     "type": "integer",
                     "description": "Maximum number of search results (default 10, max 50).",
                 },
+                "detail": {
+                    "type": "string",
+                    "enum": ["scout", "verify", "auditor", "compact", "default", "full"],
+                    "description": "Evidence profile; compact/default/full are aliases.",
+                },
+                "cursor": {
+                    "type": "string",
+                    "description": "Opaque cursor bound to the current generation.",
+                },
+                "state": {"type": "string", "description": "Optional state filter."},
+                "freshness": {"type": "string", "description": "Optional freshness filter."},
+                "scope": {"type": "string", "description": "Optional scope filter."},
+                "risk_boundary": {"type": "string", "description": "Optional risk-boundary filter."},
+                "include_inactive": {"type": "boolean", "description": "Include superseded/expired candidates."},
                 "vault_path": {
                     "type": "string",
                     "description": "Path to the agent-brain vault.",
@@ -74,14 +97,53 @@ TOOL_DEFINITIONS = [
         },
     },
     {
+        "name": "agent_brain_retrieve_status",
+        "description": "Read-only status of the current derived retrieval generation and live eligible/blocked Markdown coverage. No files are written.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"vault_path": {"type": "string", "description": "Path to the agent-brain vault."}},
+        },
+    },
+    {
+        "name": "agent_brain_retrieve_check",
+        "description": "Read-only validation of retrieval pointer, manifest, SQLite schema/integrity, and source coverage. No files are written.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"vault_path": {"type": "string", "description": "Path to the agent-brain vault."}},
+        },
+    },
+    {
+        "name": "agent_brain_retrieve_refresh",
+        "description": "Explicitly refresh the derived retrieval generation when eligible Markdown fingerprints changed. Writes only derived index files; canonical Markdown is never modified.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"vault_path": {"type": "string", "description": "Path to the agent-brain vault."}},
+        },
+    },
+    {
+        "name": "agent_brain_graph_query",
+        "description": "Read-only query of the derived work-fact graph. Edges require layout membership or explicit frontmatter references; each result points back to canonical Markdown and unresolved references are disclosed.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "project": {"type": "string"},
+                "node_type": {"type": "string"},
+                "relation_type": {"type": "string"},
+                "limit": {"type": "integer"},
+                "cursor": {"type": "string"},
+                "vault_path": {"type": "string"},
+            },
+        },
+    },
+    {
         "name": "agent_brain_context",
-        "description": "Build a compact, token-budgeted context pack (overview, current work, active decisions, summaries) for an agent task.",
+        "description": "Build a profiled, token-budgeted context pack from canonical Markdown plus derived candidates. Returns generation/coverage/truncation metadata; derived indexes are candidates and Markdown remains truth.",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "project": {
                     "type": "string",
-                    "description": "Project slug under 10_projects/.",
+                    "description": "Project name or slug under the selected vault layout.",
                 },
                 "task": {
                     "type": "string",
@@ -90,6 +152,11 @@ TOOL_DEFINITIONS = [
                 "max_tokens": {
                     "type": "integer",
                     "description": "Maximum token budget (default 4000).",
+                },
+                "profile": {
+                    "type": "string",
+                    "enum": ["scout", "verify", "auditor", "compact", "default", "full"],
+                    "description": "Context evidence profile; aliases compact/default/full are accepted.",
                 },
                 "vault_path": {
                     "type": "string",
@@ -200,7 +267,7 @@ TOOL_DEFINITIONS = [
             "properties": {
                 "project": {
                     "type": "string",
-                    "description": "Project slug under 10_projects/.",
+                    "description": "Project name or slug under the selected vault layout.",
                 },
                 "title": {
                     "type": "string",
@@ -250,7 +317,7 @@ TOOL_DEFINITIONS = [
             "properties": {
                 "project": {
                     "type": "string",
-                    "description": "Project name or slug under 10_projects/ or 10_项目工作区/.",
+                    "description": "Project name or slug under the selected vault layout.",
                 },
                 "summary": {
                     "type": "string",
@@ -368,19 +435,70 @@ class McpServer:
                 project = args.get("project")
                 record_type = args.get("record_type")
                 limit = int(args.get("limit", 10))
-                # Ensure index exists
-                index_file = vault / "50_retrieval" / "indexes" / "fts.sqlite"
+                # Ensure a derived index exists without touching canonical data.
+                index_file = default_index_path(vault)
                 if not index_file.is_file():
                     rebuild_index(vault)
-                res = search(vault, query, project=project, record_type=record_type, limit=limit)
+                    index_file = default_index_path(vault)
+                res = search(
+                    vault,
+                    query,
+                    project=project,
+                    record_type=record_type,
+                    limit=limit,
+                    detail=args.get("detail"),
+                    cursor=args.get("cursor"),
+                    state=args.get("state"),
+                    freshness=args.get("freshness"),
+                    scope=args.get("scope"),
+                    risk_boundary=args.get("risk_boundary"),
+                    include_inactive=bool(args.get("include_inactive", False)),
+                )
                 return {"content": [{"type": "text", "text": json.dumps(res, ensure_ascii=False, indent=2)}]}
+
+            elif name == "agent_brain_retrieve_status":
+                res = status_index(vault)
+                return {"content": [{"type": "text", "text": json.dumps(res, ensure_ascii=False, indent=2)}], "isError": not res.get("ok")}
+
+            elif name == "agent_brain_retrieve_check":
+                res = check_index(vault)
+                return {"content": [{"type": "text", "text": json.dumps(res, ensure_ascii=False, indent=2)}], "isError": not res.get("passed", res.get("ok"))}
+
+            elif name == "agent_brain_retrieve_refresh":
+                res = refresh_index(vault)
+                return {"content": [{"type": "text", "text": json.dumps(res, ensure_ascii=False, indent=2)}], "isError": not res.get("ok")}
+
+            elif name == "agent_brain_graph_query":
+                index_file = default_index_path(vault)
+                if not index_file.is_file():
+                    return {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": f"Error: derived graph index missing: {index_file}; call agent_brain_retrieve_refresh or rebuild first",
+                            }
+                        ],
+                        "isError": True,
+                    }
+                current = current_generation(vault)
+                generation = str(current.get("generation_id")) if current else "legacy"
+                res = query_graph(
+                    index_file,
+                    project=args.get("project"),
+                    node_type=args.get("node_type"),
+                    relation_type=args.get("relation_type"),
+                    limit=int(args.get("limit", 20)),
+                    cursor=args.get("cursor"),
+                    generation_id=generation,
+                )
+                return {"content": [{"type": "text", "text": json.dumps(res, ensure_ascii=False, indent=2)}], "isError": not res.get("ok")}
 
             elif name == "agent_brain_context":
                 project = str(args.get("project", "")).strip()
                 task = str(args.get("task", "")).strip()
                 max_tokens = int(args.get("max_tokens", 4000))
-                pack = build_context(vault, project=project, task=task, max_tokens=max_tokens)
-                return {"content": [{"type": "text", "text": str(pack.get("document", ""))}]}
+                pack = build_context(vault, project=project, task=task, max_tokens=max_tokens, profile=args.get("profile", "verify"))
+                return {"content": [{"type": "text", "text": json.dumps(pack, ensure_ascii=False, indent=2)}]}
 
             elif name == "agent_brain_claim_status":
                 argv = [str(vault)]

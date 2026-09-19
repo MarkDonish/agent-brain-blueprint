@@ -67,10 +67,16 @@ def safe_vault_join(root: Path, *parts: str) -> Path:
     return candidate
 
 
-def project_dir(vault_root: Path, project: str) -> Path:
-    """Return project directory under 10_projects/ or 10_项目工作区/ after validating slug."""
+def project_dir(vault_root: Path, project: str, *, layout=None) -> Path:
+    """Return a validated project directory under the selected vault layout."""
     slug = validate_project_slug(project)
-    chinese_dir = safe_vault_join(vault_root, "10_项目工作区", slug)
-    if chinese_dir.is_dir():
-        return chinese_dir
-    return safe_vault_join(vault_root, "10_projects", slug)
+    if layout is None:
+        # Import lazily to keep this low-level module usable by standalone
+        # path-safety tests while still enforcing the shared layout contract.
+        from lib.vault_layout import detect_layout
+
+        layout = detect_layout(vault_root, strict=True)
+    projects_root = getattr(layout, "projects_root_rel", None)
+    if not projects_root:
+        raise PathSafetyError("selected vault layout has no project root")
+    return safe_vault_join(vault_root, projects_root, slug)

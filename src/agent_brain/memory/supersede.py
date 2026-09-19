@@ -8,6 +8,7 @@ from typing import Any
 
 from agent_brain.memory.frontmatter_edit import set_frontmatter_fields
 from agent_brain.memory.promote import promote_memory
+from agent_brain.layout import detect_layout
 from agent_brain.paths import ensure_scripts_on_path
 
 
@@ -16,6 +17,7 @@ def find_record_by_id(vault: Path, record_id: str) -> Path | None:
     from lib.frontmatter import parse_frontmatter
 
     vault = vault.expanduser().resolve()
+    detect_layout(vault)
     rid = record_id.strip()
     if not rid:
         return None
@@ -57,16 +59,17 @@ def supersede_memory(
 ) -> dict[str, Any]:
     """Mark old record superseded and promote a replacement that supersedes it."""
     root = vault.expanduser().resolve()
+    layout = detect_layout(root)
     old_path = find_record_by_id(root, old_record_id)
     if old_path is None:
         raise FileNotFoundError(f"record_id not found: {old_record_id}")
 
     # Infer project from path if not provided
     rel = str(old_path.relative_to(root)).replace("\\", "/")
-    global_decision = rel.startswith("30_global_decisions/")
+    global_decision = rel.startswith(f"{layout.relative_path('global_decisions')}/")
     if not global_decision and project is None:
         parts = rel.split("/")
-        if len(parts) >= 2 and parts[0] == "10_projects":
+        if len(parts) >= 2 and parts[0] == layout.projects_root_rel:
             project = parts[1]
         else:
             raise ValueError("could not infer project; pass --project")

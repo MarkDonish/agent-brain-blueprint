@@ -11,6 +11,13 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from lib.vault_layout import VaultLayoutError, detect_layout
+
+
 CHECKS = (
     "check_vault_format.py",
     "check_vault_structure.py",
@@ -79,7 +86,12 @@ def main() -> int:
 
     # Optional project filter is advisory for human output; checkers still run whole vault.
     if args.project:
-        project_prefix = f"10_projects/{args.project}/"
+        try:
+            layout = detect_layout(vault, strict=True)
+        except VaultLayoutError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        project_prefix = f"{layout.projects_root_rel}/{args.project}/"
         for item in results:
             report = item["report"]
             if not isinstance(report, dict):

@@ -24,6 +24,7 @@ if str(SCRIPT_DIR) not in sys.path:
 
 from check_session_claims import claim_result, collect_claim_paths, overlaps
 from lib.path_safety import safe_relative_path, safe_vault_join
+from lib.vault_layout import VaultLayout, VaultLayoutError, detect_layout
 
 
 def _run_gate(
@@ -34,9 +35,10 @@ def _run_gate(
     session_id: str | None = None,
     fail_on_expired: bool = False,
     ignore_invalid_claims: bool = False,
+    layout: VaultLayout | None = None,
 ) -> dict[str, object]:
     results = [
-        claim_result(root, path, fail_on_expired=fail_on_expired)
+        claim_result(root, path, fail_on_expired=fail_on_expired, layout=layout)
         for path in collect_claim_paths(root, claims_dir)
     ]
 
@@ -118,7 +120,12 @@ def main() -> int:
         default=None,
         help="caller claim file (vault-relative or absolute under vault); sets session-id and planned paths if --path omitted",
     )
-    parser.add_argument("--claims-dir", type=Path, default=Path("40_handoffs/session_claims"))
+    parser.add_argument(
+        "--claims-dir",
+        type=Path,
+        default=None,
+        help="override the layout-selected claims directory",
+    )
     parser.add_argument("--fail-on-expired", action="store_true")
     parser.add_argument(
         "--ignore-invalid-claims",
@@ -128,7 +135,36 @@ def main() -> int:
     args = parser.parse_args()
 
     root = args.root.resolve()
-    claims_dir = args.claims_dir if args.claims_dir.is_absolute() else root / args.claims_dir
+    layout_id: str | None = None
+    layout: VaultLayout | None = None
+    if args.claims_dir is None:
+        try:
+            layout = detect_layout(root)
+            layout_id = layout.layout_id
+            claims_dir = layout.path(root, "claims_root")
+        except VaultLayoutError as exc:
+            payload = {
+                "read_only": True,
+                "trusted_local_filesystem_only": True,
+                "is_lock": False,
+                "planned_paths": [],
+                "session_id": args.session_id,
+                "active_claim_count": 0,
+                "considered_claim_count": 0,
+                "conflict_count": 0,
+                "conflicts": [],
+                "invalid_claim_count": 0,
+                "invalid_claims": [],
+                "errors": [str(exc)],
+                "allowed": False,
+                "ignore_invalid_claims": args.ignore_invalid_claims,
+                "layout_id": None,
+                "layout": None,
+            }
+            print(json.dumps(payload, indent=2))
+            return 2
+    else:
+        claims_dir = args.claims_dir if args.claims_dir.is_absolute() else root / args.claims_dir
     errors: list[str] = []
     planned: list[str] = []
     session_id = args.session_id
@@ -150,7 +186,12 @@ def main() -> int:
             else:
                 claim_path = safe_vault_join(root, *rel.split("/"))
         if claim_path is not None:
-            caller = claim_result(root, claim_path, fail_on_expired=args.fail_on_expired)
+            caller = claim_result(
+                root,
+                claim_path,
+                fail_on_expired=args.fail_on_expired,
+                layout=layout,
+            )
             if caller["errors"]:
                 errors.extend(f"caller claim: {e}" for e in caller["errors"])
             else:
@@ -185,6 +226,8 @@ def main() -> int:
             "errors": errors,
             "allowed": False,
             "ignore_invalid_claims": args.ignore_invalid_claims,
+            "layout_id": layout_id,
+            "layout": layout_id,
         }
         print(json.dumps(payload, indent=2))
         return 2
@@ -196,7 +239,10 @@ def main() -> int:
         session_id=session_id,
         fail_on_expired=args.fail_on_expired,
         ignore_invalid_claims=args.ignore_invalid_claims,
+        layout=layout,
     )
+    payload["layout_id"] = layout_id
+    payload["layout"] = layout_id
     print(json.dumps(payload, indent=2))
     return 0 if payload["allowed"] else 2
 

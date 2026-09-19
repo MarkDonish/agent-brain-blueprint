@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.10.0 - 2026-08-26
+
+Immutable retrieval generations, coverage auditing, fact graph, and native Chinese vault compatibility.
+
+- Add explicit `blueprint-en-v1` and `agent-brain-zh-v1` layout contracts across CLI, MCP, memory, handoff, session, doctor, and structure tooling.
+- Publish each FTS rebuild as an immutable generation with manifest, short lock, atomic `current.json`, integrity checks, and failure retention.
+- Add `retrieve status`, `retrieve check`, and incremental `retrieve refresh` with added/modified/deleted/no-op evidence.
+- Add deterministic Project/Task/Decision/Handoff/Validation/Source/Memory graph nodes, explicit relations, unresolved-reference disclosure, and paginated graph queries.
+- Add `scout`, `verify`, and `auditor` search/context profiles plus generation-bound cursors.
+- Preserve localized Chinese governance metadata while keeping operational state-machine enums strict.
+- Treat Chinese directories without project overviews as candidates rather than active projects.
+- Add CLI/MCP documentation and regression tests for locks, failed builds, corrupt pointers, cross-generation cursors, refresh behavior, graph evidence, and navigation-page ranking.
+
 ## 0.9.1 - 2026-08-15
 
 Intelligent Session Handoff Engine + dual vault layout awareness + MCP handoff tool.

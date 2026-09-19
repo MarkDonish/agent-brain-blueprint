@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from agent_brain.cli.claim_ops import close_claim
+from agent_brain.layout import detect_layout
 from agent_brain.paths import ensure_scripts_on_path
 
 
@@ -67,13 +68,14 @@ def create_handoff(
     """Generate a structured, source-backed handoff card and optionally close active claims."""
     ensure_scripts_on_path()
     from lib.frontmatter import parse_frontmatter
-    from lib.path_safety import safe_vault_join, validate_project_slug
+    from lib.path_safety import validate_project_slug
     from lib.record_id import new_record_id
 
     root = vault.expanduser().resolve()
     if not root.is_dir():
         raise FileNotFoundError(f"vault not found: {root}")
 
+    layout = detect_layout(root)
     slug = validate_project_slug(project)
     if not summary or not summary.strip():
         raise ValueError("handoff summary is required")
@@ -86,12 +88,7 @@ def create_handoff(
     steps = _parse_list(next_steps)
     blocker_list = _parse_list(blockers)
 
-    # Detect handoffs directory (Dual layout support)
-    chinese_proj = safe_vault_join(root, "10_项目工作区", slug)
-    if chinese_proj.is_dir():
-        handoff_dir = safe_vault_join(root, "10_项目工作区", slug, "20_交接记录")
-    else:
-        handoff_dir = safe_vault_join(root, "10_projects", slug, "20_handoffs")
+    handoff_dir = layout.project_path(root, slug, "handoffs")
 
     hid = new_record_id("hnd")
     day = date.today().isoformat()
@@ -231,27 +228,23 @@ def create_handoff(
             closed_claims.append(str(closed_path.relative_to(root)).replace("\\", "/"))
         elif close_claim_file and session_id:
             # Auto-search active claims matching session_id
-            claims_dirs = [
-                root / "40_handoffs" / "session_claims",
-                root / "40_跨Agent交接" / "会话认领",
-            ]
-            for cdir in claims_dirs:
-                if cdir.is_dir():
-                    for cfile in cdir.glob("*.md"):
-                        if cfile.name == ".gitkeep":
-                            continue
-                        try:
-                            fm_res = parse_frontmatter(cfile.read_text(encoding="utf-8"))
-                            meta = fm_res.data
-                            c_sess = str(meta.get("session_id") or "")
-                            c_owner = str(meta.get("claimed_by") or "")
-                            c_status = str(meta.get("status") or "")
-                            if c_status == "active" and (c_sess == session_id or (c_owner and c_owner == owner)):
-                                rel_c = str(cfile.relative_to(root)).replace("\\", "/")
-                                closed_p = close_claim(root, rel_c, summary=clean_summary)
-                                closed_claims.append(str(closed_p.relative_to(root)).replace("\\", "/"))
-                        except Exception:
-                            continue
+            claims_dir = layout.path(root, "claims_root")
+            if claims_dir.is_dir():
+                for cfile in claims_dir.glob("*.md"):
+                    if cfile.name == ".gitkeep":
+                        continue
+                    try:
+                        fm_res = parse_frontmatter(cfile.read_text(encoding="utf-8"))
+                        meta = fm_res.data
+                        c_sess = str(meta.get("session_id") or "")
+                        c_owner = str(meta.get("claimed_by") or "")
+                        c_status = str(meta.get("status") or "")
+                        if c_status == "active" and (c_sess == session_id or (c_owner and c_owner == owner)):
+                            rel_c = str(cfile.relative_to(root)).replace("\\", "/")
+                            closed_p = close_claim(root, rel_c, summary=clean_summary)
+                            closed_claims.append(str(closed_p.relative_to(root)).replace("\\", "/"))
+                    except Exception:
+                        continue
 
     rel_dest = str(dest.relative_to(root)).replace("\\", "/")
 

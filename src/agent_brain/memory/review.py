@@ -7,6 +7,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from agent_brain.layout import detect_layout
 from agent_brain.paths import ensure_scripts_on_path
 
 _DATE_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})")
@@ -35,6 +36,9 @@ def list_review_due(
     from lib.path_safety import validate_project_slug
 
     root = vault.expanduser().resolve()
+    if not root.is_dir():
+        raise FileNotFoundError(f"vault not found: {root}")
+    layout = detect_layout(root)
     today = today or datetime.now(timezone.utc).date()
     project_slug = validate_project_slug(project) if project else None
 
@@ -47,17 +51,31 @@ def list_review_due(
             rel = str(path.relative_to(root)).replace("\\", "/")
         except ValueError:
             continue
-        if any(p in {".git", "indexes", "80_sensitive_isolation", "60_templates"} for p in path.relative_to(root).parts):
+        if any(
+            p
+            in {
+                ".git",
+                "indexes",
+                "80_sensitive_isolation",
+                "80_敏感隔离_不要放进来",
+                "60_templates",
+                "60_模板",
+            }
+            for p in path.relative_to(root).parts
+        ):
             continue
         if project_slug:
-            prefix = f"10_projects/{project_slug}/"
-            if not (rel.startswith(prefix) or rel.startswith("30_global_decisions/")):
+            project_prefix = f"{layout.projects_root_rel}/{project_slug}/"
+            global_prefix = f"{layout.relative_path('global_decisions')}/"
+            if not (rel.startswith(project_prefix) or rel.startswith(global_prefix)):
                 continue
         # focus durable locations
-        if not (
-            "/50_decisions/" in rel
-            or rel.startswith("30_global_decisions/")
-            or "/40_validation/" in rel
+        durable_dirs = {
+            layout.relative_path("decisions"),
+            layout.relative_path("validation"),
+        }
+        if not any(part in durable_dirs for part in path.relative_to(root).parts[:-1]) and not rel.startswith(
+            f"{layout.relative_path('global_decisions')}/"
         ):
             continue
         try:

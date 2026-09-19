@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import sys
 import tempfile
 import unittest
@@ -39,6 +40,65 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("agent_brain_claim_acquire", tool_names)
         self.assertIn("agent_brain_claim_close", tool_names)
         self.assertIn("agent_brain_promote_memory", tool_names)
+        self.assertIn("agent_brain_retrieve_status", tool_names)
+        self.assertIn("agent_brain_retrieve_check", tool_names)
+        self.assertIn("agent_brain_retrieve_refresh", tool_names)
+        self.assertIn("agent_brain_graph_query", tool_names)
+
+    def test_retrieval_generation_and_graph_tools(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            vault = Path(td) / "vault"
+            shutil.copytree(DEMO, vault)
+            server = type(self.server)(vault)
+
+            refresh = server.dispatch(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 10,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "agent_brain_retrieve_refresh",
+                        "arguments": {"vault_path": str(vault)},
+                    },
+                }
+            )
+            self.assertFalse(refresh["result"].get("isError", False), refresh)
+            refreshed = json.loads(refresh["result"]["content"][0]["text"])
+            self.assertTrue(refreshed["published"])
+            generation_id = refreshed["generation_id"]
+
+            for tool in ("agent_brain_retrieve_status", "agent_brain_retrieve_check"):
+                response = server.dispatch(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": 11,
+                        "method": "tools/call",
+                        "params": {"name": tool, "arguments": {"vault_path": str(vault)}},
+                    }
+                )
+                self.assertFalse(response["result"].get("isError", False), response)
+                payload = json.loads(response["result"]["content"][0]["text"])
+                self.assertEqual(payload["generation_id"], generation_id)
+
+            graph = server.dispatch(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 12,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "agent_brain_graph_query",
+                        "arguments": {
+                            "vault_path": str(vault),
+                            "project": "demo-notes-app",
+                            "limit": 5,
+                        },
+                    },
+                }
+            )
+            self.assertFalse(graph["result"].get("isError", False), graph)
+            graph_payload = json.loads(graph["result"]["content"][0]["text"])
+            self.assertEqual(graph_payload["generation_id"], generation_id)
+            self.assertTrue(graph_payload["nodes"])
 
     def test_call_doctor_tool(self) -> None:
         call_res = self.server.dispatch({

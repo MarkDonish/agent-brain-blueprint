@@ -123,6 +123,16 @@ class CliTests(unittest.TestCase):
             proc = run_cli("project", "add", str(vault), "--name", "../outside")
             self.assertNotEqual(proc.returncode, 0)
 
+    def test_project_list_fails_closed_on_ambiguous_layout(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            vault = Path(directory) / "vault"
+            (vault / "10_projects").mkdir(parents=True)
+            (vault / "10_项目工作区").mkdir(parents=True)
+            proc = run_cli("project", "list", str(vault))
+            self.assertEqual(proc.returncode, 2)
+            self.assertIn("ambiguous vault layout", proc.stderr)
+            self.assertNotIn("Traceback", proc.stderr)
+
     def test_record_id(self) -> None:
         proc = run_cli("record", "id", "--prefix", "mem")
         self.assertEqual(proc.returncode, 0, proc.stderr)

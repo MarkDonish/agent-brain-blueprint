@@ -8,6 +8,7 @@ from typing import Any
 
 from agent_brain.cli.claim_ops import close_claim
 from agent_brain.handoff.engine import create_handoff
+from agent_brain.layout import detect_layout
 from agent_brain.paths import ensure_scripts_on_path
 
 
@@ -42,10 +43,12 @@ def session_end(
     slug = validate_project_slug(project)
     if not root.is_dir():
         raise FileNotFoundError(f"vault not found: {root}")
+    layout = detect_layout(root)
+    current_work = layout.project_index_relative_path(slug, "current_work")
 
     checklist = [
         "Re-run or attach validation evidence (status=pass needs commands or evidence_ref)",
-        "Update 10_current_work/INDEX.md",
+        f"Update {current_work}",
         "Close session claim if one was opened",
         "Write handoff only if another session must continue",
         "Promote durable facts/decisions explicitly via agent-brain memory promote (not automatic)",
