@@ -33,3 +33,14 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 agent_brain = ["py.typed"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 140
+
+[tool.ruff.lint]
+# Pyflakes + pycodestyle errors. Style-only rules are intentionally excluded
+# to keep diffs small; runtime code must stay stdlib-zero regardless.
+# E402 is expected: scripts and tests bootstrap sys.path before lib imports.
+select = ["E4", "E7", "E9", "F"]
+ignore = ["E402"]

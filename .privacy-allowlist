@@ -1,5 +1,5 @@
-# Lines matching these substrings are ignored for risk patterns.
-# Hard secrets are still reported.
+# Risk-pattern matches whose matched text contains one of these substrings
+# are suppressed. Hard secrets (keys, tokens) are still reported.
 # demo / docs placeholders
 example-app
 demo-notes-app

@@ -205,7 +205,10 @@ def main() -> int:
         )
         for path in collect_claim_paths(root, claims_dir)
     ]
-    active = [item for item in results if item["active"] and not item["errors"]]
+    # Conflict detection must include active claims that also carry format
+    # errors: an errored claim still occupies its planned paths, and hiding
+    # it would let another session walk into a live conflict.
+    active = [item for item in results if item["active"]]
     for index, left in enumerate(active):
         for right in active[index + 1 :]:
             if any(overlaps(str(a), str(b)) for a in left["paths"] for b in right["paths"]):

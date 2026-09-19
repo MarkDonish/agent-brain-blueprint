@@ -13,7 +13,6 @@ import argparse
 import hashlib
 import json
 import re
-import sys
 from pathlib import Path
 
 
@@ -22,6 +21,8 @@ SKIP_DIR_NAMES = {
     ".venv",
     "__pycache__",
     ".pytest_cache",
+    ".ruff_cache",
+    ".mypy_cache",
     "node_modules",
     "indexes",
     "cache",
@@ -65,16 +66,8 @@ RISK_PATTERNS = (
     ("ipv4", re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")),
 )
 
-ALLOWLIST_SNIPPETS = {
-    # Common documentation examples that are safe in this repository.
-    "your-account",
-    "demo-user",
-    "example-app",
-    "/path/to/",
-    "127.0.0.1",
-    "0.0.0.0",
-    "localhost",
-}
+# Allowlist snippets live in `.privacy-allowlist` (single source of truth);
+# load_allowlist() reads them. Nothing is duplicated here.
 
 SECRET_PATTERN_NAMES = {name for name, _ in SECRET_PATTERNS} | {"unreadable_text"}
 
@@ -162,10 +155,7 @@ def scan_file(root: Path, path: Path, allowlist: set[str]) -> list[dict[str, obj
 
     for line_no, line in enumerate(text.splitlines(), start=1):
         stripped = line.strip()
-        allowlisted = any(snippet in stripped for snippet in ALLOWLIST_SNIPPETS) or any(
-            item in stripped for item in allowlist
-        )
-        # Always check hard secrets, even on allowlisted lines.
+        # Hard secrets are always reported, even inside allowlisted text.
         for name, pattern in SECRET_PATTERNS:
             match = pattern.search(line)
             if match:
@@ -178,13 +168,15 @@ def scan_file(root: Path, path: Path, allowlist: set[str]) -> list[dict[str, obj
                         fingerprint=fingerprint_secret(match.group(0)),
                     )
                 )
-        if allowlisted:
-            continue
         for name, pattern in RISK_PATTERNS:
-            match = pattern.search(line)
-            if match:
-                # Risk findings may show context but still avoid huge dumps.
-                detail = stripped[:160]
+            for match in pattern.finditer(line):
+                matched = match.group(0)
+                # Match-level allowlisting: suppress only this specific match
+                # when the matched text itself contains an allowlisted snippet.
+                # A real leak elsewhere on the same line is still reported.
+                if any(item in matched for item in allowlist):
+                    continue
+                detail = f"{matched} <- {stripped[:140]}" if len(stripped) > len(matched) else matched
                 findings.append(_finding(relative, name, line_no, detail=detail))
     return findings
 
